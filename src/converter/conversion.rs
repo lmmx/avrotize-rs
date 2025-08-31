@@ -222,6 +222,13 @@ pub fn json_schema_object_to_avro_record(
     let record_name = avro_name(raw_name);
     let mut avro_record = create_avro_record(&record_name, namespace, Vec::new());
 
+    // Collect "required" list from the parent object
+    let required_fields: Vec<&str> = json_object
+        .get("required")
+        .and_then(|r| r.as_array())
+        .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect())
+        .unwrap_or_default();
+
     // Handle fields
     if let Some(props) = json_object.get("properties").and_then(|p| p.as_object()) {
         for (field_name, field_schema) in props {
@@ -242,9 +249,19 @@ pub fn json_schema_object_to_avro_record(
                 avro_field_type = json!("string");
             }
 
+            let mut field_type = avro_field_type.clone();
+            if !required_fields.contains(&field_name.as_str()) {
+                match &avro_field_type {
+                    Value::Array(arr) if arr.iter().any(|t| t == "null") => {}
+                    _ => {
+                        field_type = json!(["null", avro_field_type]);
+                    }
+                }
+            }
+
             let field = json!({
                 "name": field_name,
-                "type": avro_field_type
+                "type": field_type
             });
             avro_record["fields"]
                 .as_array_mut()
