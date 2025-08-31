@@ -1,0 +1,45 @@
+modules = ["rust"]
+[agent]
+expertMode = true
+
+[nix]
+channel = "stable-25_05"
+packages = ["openssl", "tree"]
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Run Polite CLI"
+
+[[workflows.workflow]]
+name = "Run Polite CLI"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cargo check"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Bash Shell"
+
+[[workflows.workflow]]
+name = "Bash Shell"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "bash"
+
+[workflows.workflow.metadata]
+outputType = "console"

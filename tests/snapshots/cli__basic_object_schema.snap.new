@@ -1,0 +1,16 @@
+---
+source: tests/cli.rs
+assertion_line: 37
+expression: json
+---
+{
+  "fields": [
+    {
+      "name": "name",
+      "type": "string"
+    }
+  ],
+  "name": "Document",
+  "namespace": "schema",
+  "type": "record"
+}
