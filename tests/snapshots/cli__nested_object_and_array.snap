@@ -1,0 +1,52 @@
+---
+source: tests/cli.rs
+expression: json
+---
+{
+  "type": "record",
+  "name": "document",
+  "namespace": "schema",
+  "fields": [
+    {
+      "name": "name",
+      "type": "string"
+    },
+    {
+      "name": "age",
+      "type": "int"
+    },
+    {
+      "name": "address",
+      "type": {
+        "type": "record",
+        "name": "address",
+        "namespace": "schema",
+        "fields": [
+          {
+            "name": "street",
+            "type": "string"
+          },
+          {
+            "name": "city",
+            "type": "string"
+          },
+          {
+            "name": "state",
+            "type": "string"
+          },
+          {
+            "name": "postalCode",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "hobbies",
+      "type": {
+        "type": "array",
+        "items": "string"
+      }
+    }
+  ]
+}

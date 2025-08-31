@@ -1,0 +1,11 @@
+{
+    "type": "record",
+    "name": "document",
+    "namespace": "basic_string_schema_with_title",
+    "fields": [
+        {
+            "name": "name",
+            "type": "string"
+        }
+    ]
+}

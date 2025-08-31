@@ -26,3 +26,4 @@ assert_cmd = "2"
 tempfile = "3"
 predicates = "3"
 insta = { version = "1", features = ["json"] }
+rstest = "0.26"
