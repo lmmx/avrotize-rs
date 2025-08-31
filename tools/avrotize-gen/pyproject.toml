@@ -1,0 +1,10 @@
+[project]
+authors = [{ name = "Louis Maddox", email = "louismmx@gmail.com" }]
+dependencies = [
+    "avrotize>=2.8.0",
+]
+description = "Avro schema generator."
+name = "avrotize-gen"
+version = "0.1.0"
+readme = "README.md"
+requires-python = ">=3.13"

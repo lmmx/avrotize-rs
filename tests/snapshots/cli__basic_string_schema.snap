@@ -3,13 +3,13 @@ source: tests/cli.rs
 expression: json
 ---
 {
+  "type": "record",
+  "name": "Document",
+  "namespace": "schema",
   "fields": [
     {
       "name": "name",
       "type": "string"
     }
-  ],
-  "name": "Document",
-  "namespace": "schema",
-  "type": "record"
+  ]
 }
