@@ -4,22 +4,14 @@ use std::fs;
 use insta::assert_json_snapshot;
 
 #[test]
-fn cli_converts_basic_object_schema() {
+fn cli_basic_string_schema() {
     let dir = tempdir().unwrap();
     let input_path = dir.path().join("schema.json");
     let output_path = dir.path().join("schema.avsc");
 
-    // Minimal valid JSON Schema
-    fs::write(
-        &input_path,
-        r#"{
-            "type": "object",
-            "properties": {
-                "name": { "type": "string" }
-            },
-            "required": ["name"]
-        }"#,
-    ).unwrap();
+    // Load JSON Schema from fixture
+    let schema = include_str!("fixtures/jsonschema/basic_string_schema.json");
+    fs::write(&input_path, schema).unwrap();
 
     // Run the CLI
     Command::cargo_bin("jsonschema2avro")
@@ -34,5 +26,5 @@ fn cli_converts_basic_object_schema() {
     let json: serde_json::Value = serde_json::from_str(&output).unwrap();
 
     // Snapshot
-    assert_json_snapshot!("basic_object_schema", json);
+    assert_json_snapshot!("basic_string_schema", json);
 }
