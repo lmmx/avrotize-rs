@@ -16,7 +16,10 @@ pub fn compose_namespace(parts: &[&str]) -> String {
 
 /// Get the fully qualified Avro type name: `namespace.name`.
 pub fn get_qualified_name(avro_type: &Value) -> String {
-    let namespace = avro_type.get("namespace").and_then(|v| v.as_str()).unwrap_or("");
+    let namespace = avro_type
+        .get("namespace")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
     let name = avro_type.get("name").and_then(|v| v.as_str()).unwrap_or("");
     compose_namespace(&[namespace, name])
 }

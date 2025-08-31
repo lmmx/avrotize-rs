@@ -1,3 +1,6 @@
+import ".just/commit.just"
+import ".just/hooks.just"
+
 test:
     cargo test -F cli
 

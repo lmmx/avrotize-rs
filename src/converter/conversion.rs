@@ -6,7 +6,7 @@ use crate::converter::merging::{merge_avro_schemas, merge_json_schemas};
 use crate::converter::postprocess::post_check_avro_type;
 use crate::converter::references::resolve_reference;
 use crate::converter::structs::{
-    create_avro_record, create_enum_type, create_wrapper_record, create_array_type, create_map_type,
+    create_array_type, create_avro_record, create_enum_type, create_map_type, create_wrapper_record,
 };
 use crate::converter::types::{ensure_type, json_schema_primitive_to_avro_type};
 use crate::converter::unions::flatten_union;
@@ -28,7 +28,9 @@ fn handle_pattern_properties(
 ) -> Vec<Value> {
     let mut extension_types = Vec::new();
 
-    if let Some(pattern_props) = json_object.get("patternProperties").and_then(|pp| pp.as_object())
+    if let Some(pattern_props) = json_object
+        .get("patternProperties")
+        .and_then(|pp| pp.as_object())
     {
         for (pattern, prop_schema) in pattern_props {
             let mut deps = Vec::new();
@@ -123,13 +125,7 @@ pub fn json_schema_object_to_avro_record(
         );
 
         let mut avro_type = if t.is_array() {
-            create_wrapper_record(
-                &(name.to_string() + "_union"),
-                "utility",
-                "options",
-                &[],
-                t,
-            )
+            create_wrapper_record(&(name.to_string() + "_union"), "utility", "options", &[], t)
         } else if t.get("type").is_some() && t.get("type").unwrap() != "record" {
             create_wrapper_record(&(name.to_string() + "_wrapper"), "utility", "value", &[], t)
         } else {
@@ -144,7 +140,11 @@ pub fn json_schema_object_to_avro_record(
                 if let Some(first_field) = fields.first_mut() {
                     if let Some(field_type) = first_field.get_mut("type") {
                         let mut inner = field_type.take();
-                        merge_dependencies_into_parent(&mut dependencies, &mut inner, &mut avro_type);
+                        merge_dependencies_into_parent(
+                            &mut dependencies,
+                            &mut inner,
+                            &mut avro_type,
+                        );
                         *field_type = inner;
                     }
                 }
@@ -217,7 +217,7 @@ pub fn json_schema_object_to_avro_record(
     } else if let Some(t) = title {
         t
     } else {
-        ""   // convert nulls to empty string, avro_name will turn it into "_"
+        "" // convert nulls to empty string, avro_name will turn it into "_"
     };
     let record_name = avro_name(raw_name);
     let mut avro_record = create_avro_record(&record_name, namespace, Vec::new());
@@ -263,10 +263,7 @@ pub fn json_schema_object_to_avro_record(
                 "name": field_name,
                 "type": field_type
             });
-            avro_record["fields"]
-                .as_array_mut()
-                .unwrap()
-                .push(field);
+            avro_record["fields"].as_array_mut().unwrap().push(field);
             dependencies.extend(deps);
         }
     }
@@ -282,10 +279,7 @@ pub fn json_schema_object_to_avro_record(
         &mut dependencies,
     );
     if !pattern_types.is_empty() {
-        avro_record["doc"] = Value::String(format!(
-            "Pattern properties: {}",
-            pattern_types.len()
-        ));
+        avro_record["doc"] = Value::String(format!("Pattern properties: {}", pattern_types.len()));
     }
 
     if let Some(additional) = handle_additional_properties(
@@ -480,7 +474,11 @@ pub fn json_type_to_avro_type(
                 fmt,
                 enum_strings
                     .as_ref()
-                    .map(|v| v.iter().map(|s| Value::String(s.clone())).collect::<Vec<_>>())
+                    .map(|v| {
+                        v.iter()
+                            .map(|s| Value::String(s.clone()))
+                            .collect::<Vec<_>>()
+                    })
                     .as_deref(),
                 record_name,
                 field_name,

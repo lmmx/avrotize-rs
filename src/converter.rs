@@ -3,10 +3,10 @@ pub mod composition;
 pub mod conversion;
 pub mod definitions;
 pub mod emptiness;
-pub mod state;
 pub mod merging;
 pub mod postprocess;
 pub mod references;
+pub mod state;
 pub mod structs;
 pub mod types;
 pub mod unions;
@@ -14,15 +14,15 @@ pub mod utils;
 
 pub use state::JsonToAvroConverter;
 
+use serde_json::Value;
 use std::fs;
 use std::path::Path;
-use serde_json::Value;
 use url::Url;
 
+use crate::common::traversal::find_schema_node;
 use crate::converter::definitions::{process_definition, process_definition_list};
 use crate::converter::postprocess::postprocess_schema;
 use crate::dependency_resolver::{inline_dependencies_of, sort_messages_by_dependencies};
-use crate::common::traversal::find_schema_node;
 
 /// Convert an in-memory JSON Schema into an Avro Schema.
 ///
@@ -42,7 +42,10 @@ pub fn jsons_to_avro(
     let mut root_namespace = namespace.to_string();
 
     // definitions / $defs
-    if let Some(defs) = json_schema.get("definitions").or_else(|| json_schema.get("$defs")) {
+    if let Some(defs) = json_schema
+        .get("definitions")
+        .or_else(|| json_schema.get("$defs"))
+    {
         if let Some(map) = defs.as_object() {
             for (def_name, schema) in map {
                 if schema.is_object() {
@@ -90,9 +93,7 @@ pub fn jsons_to_avro(
                 .collect(),
         )
     } else if !avro_schema.is_empty() {
-        if !json_schema.get("definitions").is_some()
-            && !json_schema.get("$defs").is_some()
-        {
+        if !json_schema.get("definitions").is_some() && !json_schema.get("$defs").is_some() {
             let mut recursion_stack = Vec::new();
             if let Some(root) = find_schema_node(
                 &|t: &Value| {
@@ -157,8 +158,12 @@ pub fn convert_jsons_to_avro(
             .unwrap()
     });
 
-    let avro_schema =
-        jsons_to_avro(&json_schema, namespace, json_schema_file_path, split_top_level_records);
+    let avro_schema = jsons_to_avro(
+        &json_schema,
+        namespace,
+        json_schema_file_path,
+        split_top_level_records,
+    );
 
     if split_top_level_records {
         if let Some(arr) = avro_schema.as_array() {

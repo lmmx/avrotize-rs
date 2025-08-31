@@ -1,5 +1,5 @@
-use serde_json::Value;
 use super::merging::merge_avro_schemas;
+use serde_json::Value;
 
 /// Flatten a union type into a simplified list of unique types.
 ///
@@ -31,16 +31,30 @@ pub fn flatten_union(type_list: &[Value], avro_schemas: &[Value]) -> Vec<Value> 
 
     for t in flat_list {
         if let Some(obj) = t.as_object() {
-            if obj.get("type") == Some(&Value::String("array".to_string())) && obj.contains_key("items") {
+            if obj.get("type") == Some(&Value::String("array".to_string()))
+                && obj.contains_key("items")
+            {
                 if let Some(existing) = array_type.take() {
-                    array_type = Some(merge_avro_schemas(&[existing, t.clone()], avro_schemas, None, &mut Vec::new()));
+                    array_type = Some(merge_avro_schemas(
+                        &[existing, t.clone()],
+                        avro_schemas,
+                        None,
+                        &mut Vec::new(),
+                    ));
                 } else {
                     array_type = Some(t.clone());
                     flat_list_1.push(t.clone());
                 }
-            } else if obj.get("type") == Some(&Value::String("map".to_string())) && obj.contains_key("values") {
+            } else if obj.get("type") == Some(&Value::String("map".to_string()))
+                && obj.contains_key("values")
+            {
                 if let Some(existing) = map_type.take() {
-                    map_type = Some(merge_avro_schemas(&[existing, t.clone()], avro_schemas, None, &mut Vec::new()));
+                    map_type = Some(merge_avro_schemas(
+                        &[existing, t.clone()],
+                        avro_schemas,
+                        None,
+                        &mut Vec::new(),
+                    ));
                 } else {
                     map_type = Some(t.clone());
                     flat_list_1.push(t.clone());
