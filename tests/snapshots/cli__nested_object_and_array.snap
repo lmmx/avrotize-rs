@@ -17,36 +17,42 @@ expression: json
     },
     {
       "name": "address",
-      "type": {
-        "type": "record",
-        "name": "address",
-        "namespace": "schema",
-        "fields": [
-          {
-            "name": "street",
-            "type": "string"
-          },
-          {
-            "name": "city",
-            "type": "string"
-          },
-          {
-            "name": "state",
-            "type": "string"
-          },
-          {
-            "name": "postalCode",
-            "type": "string"
-          }
-        ]
-      }
+      "type": [
+        "null",
+        {
+          "type": "record",
+          "name": "address",
+          "namespace": "schema",
+          "fields": [
+            {
+              "name": "street",
+              "type": "string"
+            },
+            {
+              "name": "city",
+              "type": "string"
+            },
+            {
+              "name": "state",
+              "type": "string"
+            },
+            {
+              "name": "postalCode",
+              "type": "string"
+            }
+          ]
+        }
+      ]
     },
     {
       "name": "hobbies",
-      "type": {
-        "type": "array",
-        "items": "string"
-      }
+      "type": [
+        "null",
+        {
+          "type": "array",
+          "items": "string"
+        }
+      ]
     }
   ]
 }
