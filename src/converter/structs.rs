@@ -34,7 +34,10 @@ pub fn create_wrapper_record(
 
     if !dependencies.is_empty() {
         record["dependencies"] = Value::Array(
-            dependencies.iter().map(|d| Value::String(d.clone())).collect(),
+            dependencies
+                .iter()
+                .map(|d| Value::String(d.clone()))
+                .collect(),
         );
     }
 

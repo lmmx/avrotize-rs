@@ -1,5 +1,5 @@
-use serde_json::{json, Value};
 use crate::common::generic_type;
+use serde_json::{json, Value};
 
 /// Ensure the given type has a `"type"` field if required.
 ///

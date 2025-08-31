@@ -1,5 +1,5 @@
-use serde_json::Value;
 use crate::converter::unions::flatten_union;
+use serde_json::Value;
 
 /// Merge multiple JSON Schemas into one.
 ///
@@ -77,8 +77,15 @@ pub fn merge_json_schemas(json_schemas: &[Value], intersect: bool) -> Value {
 
         // handle required specially
         if let Some(req) = schema.get("required").and_then(|r| r.as_array()) {
-            let req: Vec<String> = req.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect();
-            let merged_req = merged.as_object_mut().unwrap().entry("required").or_insert_with(|| Value::Array(vec![]));
+            let req: Vec<String> = req
+                .iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect();
+            let merged_req = merged
+                .as_object_mut()
+                .unwrap()
+                .entry("required")
+                .or_insert_with(|| Value::Array(vec![]));
             if let Some(arr) = merged_req.as_array_mut() {
                 for r in req {
                     if !arr.iter().any(|v| v.as_str() == Some(&r)) {
@@ -94,7 +101,10 @@ pub fn merge_json_schemas(json_schemas: &[Value], intersect: bool) -> Value {
             let mut set: Option<Vec<String>> = None;
             for schema in json_schemas {
                 if let Some(req) = schema.get("required").and_then(|r| r.as_array()) {
-                    let current: Vec<String> = req.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect();
+                    let current: Vec<String> = req
+                        .iter()
+                        .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                        .collect();
                     set = Some(if let Some(prev) = set {
                         prev.into_iter().filter(|x| current.contains(x)).collect()
                     } else {
@@ -154,7 +164,8 @@ pub fn merge_avro_schemas(
                     Some(existing) => {
                         if existing != value {
                             // Merge into a union if conflict
-                            let new_union = flatten_union(&[existing.clone(), value.clone()], avro_schemas);
+                            let new_union =
+                                flatten_union(&[existing.clone(), value.clone()], avro_schemas);
                             *existing = Value::Array(new_union);
                         }
                     }

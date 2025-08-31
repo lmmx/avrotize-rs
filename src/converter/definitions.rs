@@ -1,11 +1,11 @@
 use serde_json::Value;
 
 use crate::converter::analysis::is_standalone_avro_type;
+use crate::converter::conversion::json_schema_object_to_avro_record;
 use crate::converter::emptiness::is_empty_type;
 use crate::converter::postprocess::register_type;
 use crate::converter::structs::create_wrapper_record;
 use crate::converter::utils::lift_dependencies_from_type;
-use crate::converter::conversion::json_schema_object_to_avro_record;
 
 /// Process a schema definition list (e.g. `$defs` or `definitions`).
 pub fn process_definition_list(
@@ -48,8 +48,15 @@ pub fn process_definition(
     schema: &Value,
     is_root: bool,
 ) -> Option<(String, String)> {
-    let avro_schema_item_list =
-        json_schema_object_to_avro_record(schema_name, schema, namespace, json_schema, base_uri, avro_schema, record_stack);
+    let avro_schema_item_list = json_schema_object_to_avro_record(
+        schema_name,
+        schema,
+        namespace,
+        json_schema,
+        base_uri,
+        avro_schema,
+        record_stack,
+    );
 
     let mut avro_schema_items = match avro_schema_item_list {
         Value::Array(arr) => arr,
@@ -68,7 +75,12 @@ pub fn process_definition(
         );
         register_type(avro_schema, wrapper.clone());
         return Some((
-            wrapper.get("namespace").unwrap().as_str().unwrap().to_string(),
+            wrapper
+                .get("namespace")
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .to_string(),
             wrapper.get("name").unwrap().as_str().unwrap().to_string(),
         ));
     }
@@ -80,7 +92,10 @@ pub fn process_definition(
             }
         }
 
-        let name = avro_item.get("name").and_then(|n| n.as_str()).unwrap_or(schema_name);
+        let name = avro_item
+            .get("name")
+            .and_then(|n| n.as_str())
+            .unwrap_or(schema_name);
         let ns = avro_item
             .get("namespace")
             .and_then(|n| n.as_str())
@@ -99,7 +114,12 @@ pub fn process_definition(
             let wrapper = create_wrapper_record(schema_name, ns, name, &deps, item_copy);
             register_type(avro_schema, wrapper.clone());
             return Some((
-                wrapper.get("namespace").unwrap().as_str().unwrap().to_string(),
+                wrapper
+                    .get("namespace")
+                    .unwrap()
+                    .as_str()
+                    .unwrap()
+                    .to_string(),
                 wrapper.get("name").unwrap().as_str().unwrap().to_string(),
             ));
         }

@@ -8,7 +8,9 @@ pub fn adjust_resolved_dependencies(avro_schema: &mut Value) {
 
     impl TreeWalker {
         fn new() -> Self {
-            TreeWalker { found_something: true }
+            TreeWalker {
+                found_something: true,
+            }
         }
 
         fn swap_record_dependencies_above(
@@ -142,7 +144,10 @@ pub fn adjust_resolved_dependencies(avro_schema: &mut Value) {
 /// Inline all dependent records to break circular dependencies.
 pub fn inline_dependencies_of(avro_schema: &mut Vec<Value>, record: &mut Value) {
     if let Some(deps) = record.get("dependencies").and_then(|d| d.as_array()) {
-        let deps_copy: Vec<String> = deps.iter().filter_map(|d| d.as_str().map(|s| s.to_string())).collect();
+        let deps_copy: Vec<String> = deps
+            .iter()
+            .filter_map(|d| d.as_str().map(|s| s.to_string()))
+            .collect();
 
         for dependency in deps_copy {
             if let Some(dep_type) = avro_schema.iter().find(|x| {
@@ -188,7 +193,11 @@ pub fn sort_messages_by_dependencies(avro_schema: &mut Vec<Value>) -> Vec<Value>
             let deps: Vec<String> = record
                 .get("dependencies")
                 .and_then(|d| d.as_array())
-                .map(|arr| arr.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|x| x.as_str().map(|s| s.to_string()))
+                        .collect()
+                })
                 .unwrap_or_else(|| Vec::new());
             let remaining_deps: Vec<String> = deps
                 .into_iter()
@@ -214,7 +223,10 @@ pub fn sort_messages_by_dependencies(avro_schema: &mut Vec<Value>) -> Vec<Value>
 
         if !found {
             // Fallback: break circular dependencies by inlining
-            if let Some(idx) = avro_schema.iter().position(|r| r.get("dependencies").is_some()) {
+            if let Some(idx) = avro_schema
+                .iter()
+                .position(|r| r.get("dependencies").is_some())
+            {
                 let mut record = avro_schema.remove(idx);
                 inline_dependencies_of(&mut sorted_messages.clone(), &mut record);
                 sorted_messages.push(record);
@@ -230,7 +242,12 @@ pub fn sort_messages_by_dependencies(avro_schema: &mut Vec<Value>) -> Vec<Value>
 }
 
 /// Helper: swap dependency type inside a field.
-fn swap_dependency_type(avro_schema: &mut Vec<Value>, field: &mut Value, dependency: &str, dependency_type: &Value) {
+fn swap_dependency_type(
+    avro_schema: &mut Vec<Value>,
+    field: &mut Value,
+    dependency: &str,
+    dependency_type: &Value,
+) {
     if let Some(ftype) = field.get_mut("type") {
         if ftype.is_string() && ftype.as_str() == Some(dependency) {
             *ftype = dependency_type.clone();

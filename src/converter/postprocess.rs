@@ -1,9 +1,9 @@
 use serde_json::{json, Value};
 
-use crate::converter::analysis::{is_avro_complex_type, is_standalone_avro_type};
-use crate::converter::utils::lift_dependencies_from_type;
 use crate::common::traversal::{find_schema_node, set_schema_node};
+use crate::converter::analysis::{is_avro_complex_type, is_standalone_avro_type};
 use crate::converter::merging::merge_avro_schemas;
+use crate::converter::utils::lift_dependencies_from_type;
 
 /// Finalize an Avro type after construction.
 ///

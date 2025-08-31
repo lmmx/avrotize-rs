@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use crate::avro::AvroType;
+use std::collections::HashMap;
 
 /// Holds the state for converting JSON Schema → Avro Schema.
 pub struct JsonToAvroConverter {

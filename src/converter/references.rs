@@ -1,9 +1,9 @@
+use reqwest::blocking::Client;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fs;
 use std::time::Duration;
 use url::Url;
-use reqwest::blocking::Client;
 
 /// A simple cache for fetched schema content.
 pub struct ContentCache {
@@ -12,7 +12,9 @@ pub struct ContentCache {
 
 impl ContentCache {
     pub fn new() -> Self {
-        Self { cache: HashMap::new() }
+        Self {
+            cache: HashMap::new(),
+        }
     }
 
     pub fn get(&self, url: &str) -> Option<&String> {
@@ -38,16 +40,18 @@ pub fn fetch_content(url: &str, cache: &mut ContentCache) -> Result<String, Stri
                 .timeout(Duration::from_secs(30))
                 .build()
                 .map_err(|e| format!("Client build error: {e}"))?;
-            let resp = client.get(url)
+            let resp = client
+                .get(url)
                 .send()
                 .map_err(|e| format!("HTTP request error: {e}"))?;
-            resp.text().map_err(|e| format!("Error reading response: {e}"))?
+            resp.text()
+                .map_err(|e| format!("Error reading response: {e}"))?
         }
         "file" | "" => {
-            let path = parsed.to_file_path()
+            let path = parsed
+                .to_file_path()
                 .map_err(|_| format!("Invalid file URL: {url}"))?;
-            fs::read_to_string(&path)
-                .map_err(|e| format!("File read error from {path:?}: {e}"))?
+            fs::read_to_string(&path).map_err(|e| format!("File read error from {path:?}: {e}"))?
         }
         _ => return Err(format!("Unsupported scheme: {}", parsed.scheme())),
     };
@@ -68,7 +72,8 @@ pub fn resolve_reference(
     json_doc: &Value,
     cache: &mut ContentCache,
 ) -> Result<(Value, Value), String> {
-    let ref_str = json_type.get("$ref")
+    let ref_str = json_type
+        .get("$ref")
         .and_then(|v| v.as_str())
         .ok_or("Missing $ref")?;
 
@@ -97,7 +102,8 @@ pub fn resolve_reference(
             format!("/{}", fragment)
         };
 
-        let resolved = schema_doc.pointer(&pointer)
+        let resolved = schema_doc
+            .pointer(&pointer)
             .ok_or_else(|| format!("Invalid JSON Pointer fragment: {pointer}"))?;
         Ok((resolved.clone(), schema_doc))
     } else {

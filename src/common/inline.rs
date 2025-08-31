@@ -19,14 +19,22 @@ pub fn evict_tracked_references(
                 let qualified_name = if namespace.is_empty() {
                     obj.get("name").unwrap().as_str().unwrap().to_string()
                 } else {
-                    format!("{}.{}", namespace, obj.get("name").unwrap().as_str().unwrap())
+                    format!(
+                        "{}.{}",
+                        namespace,
+                        obj.get("name").unwrap().as_str().unwrap()
+                    )
                 };
                 if !tracker.contains(&qualified_name) {
                     let mut new_obj = obj.clone();
                     if let Some(fields) = new_obj.get_mut("fields").and_then(|f| f.as_array_mut()) {
                         let mut replaced = Vec::new();
                         for field in fields.iter() {
-                            let new_type = evict_tracked_references(field.get("type").unwrap(), namespace, tracker);
+                            let new_type = evict_tracked_references(
+                                field.get("type").unwrap(),
+                                namespace,
+                                tracker,
+                            );
                             let mut field_clone = field.clone();
                             if let Some(map) = field_clone.as_object_mut() {
                                 map.insert("type".to_string(), new_type);
@@ -42,13 +50,19 @@ pub fn evict_tracked_references(
             } else if t == "array" {
                 if let Some(items) = obj.get("items") {
                     let mut new_obj = obj.clone();
-                    new_obj.insert("items".to_string(), evict_tracked_references(items, parent_namespace, tracker));
+                    new_obj.insert(
+                        "items".to_string(),
+                        evict_tracked_references(items, parent_namespace, tracker),
+                    );
                     return Value::Object(new_obj);
                 }
             } else if t == "map" {
                 if let Some(values) = obj.get("values") {
                     let mut new_obj = obj.clone();
-                    new_obj.insert("values".to_string(), evict_tracked_references(values, parent_namespace, tracker));
+                    new_obj.insert(
+                        "values".to_string(),
+                        evict_tracked_references(values, parent_namespace, tracker),
+                    );
                     return Value::Object(new_obj);
                 }
             }
@@ -134,7 +148,13 @@ pub fn inline_avro_references(
             if let Some(items) = obj.get("items") {
                 new_obj.insert(
                     "items".to_string(),
-                    inline_avro_references(items, type_dict, current_namespace, tracker, defined_types),
+                    inline_avro_references(
+                        items,
+                        type_dict,
+                        current_namespace,
+                        tracker,
+                        defined_types,
+                    ),
                 );
             }
             return Value::Object(new_obj);
@@ -144,14 +164,21 @@ pub fn inline_avro_references(
             if let Some(values) = obj.get("values") {
                 new_obj.insert(
                     "values".to_string(),
-                    inline_avro_references(values, type_dict, current_namespace, tracker, defined_types),
+                    inline_avro_references(
+                        values,
+                        type_dict,
+                        current_namespace,
+                        tracker,
+                        defined_types,
+                    ),
                 );
             }
             return Value::Object(new_obj);
         }
 
         if let Some(inner) = obj.get("type") {
-            let inlined = inline_avro_references(inner, type_dict, current_namespace, tracker, defined_types);
+            let inlined =
+                inline_avro_references(inner, type_dict, current_namespace, tracker, defined_types);
             new_obj.insert("type".to_string(), inlined);
             return Value::Object(new_obj);
         }
@@ -160,7 +187,15 @@ pub fn inline_avro_references(
     } else if let Some(arr) = avro_schema.as_array() {
         Value::Array(
             arr.iter()
-                .map(|item| inline_avro_references(item, type_dict, current_namespace, tracker, defined_types))
+                .map(|item| {
+                    inline_avro_references(
+                        item,
+                        type_dict,
+                        current_namespace,
+                        tracker,
+                        defined_types,
+                    )
+                })
                 .collect(),
         )
     } else if let Some(type_str) = avro_schema.as_str() {
@@ -176,7 +211,13 @@ pub fn inline_avro_references(
                             .insert("namespace".to_string(), Value::String(parts[1].to_string()));
                     }
                 }
-                let inlined = inline_avro_references(&schema_clone, type_dict, current_namespace, tracker, defined_types);
+                let inlined = inline_avro_references(
+                    &schema_clone,
+                    type_dict,
+                    current_namespace,
+                    tracker,
+                    defined_types,
+                );
                 tracker.insert(type_str.to_string());
                 return inlined;
             }
@@ -211,8 +252,14 @@ pub fn strip_first_doc(schema: &mut Value) -> bool {
 
 /// Strip the alternate type from an Avro schema union (if present).
 pub fn strip_alternate_type(avro_schema: &mut Vec<Value>) {
-    if let Some(_original) = avro_schema.iter().find(|t| t.is_object() && !t.get("alternateof").is_some()) {
-        if let Some(alternate) = avro_schema.iter().find(|t| t.is_object() && t.get("alternateof").is_some()) {
+    if let Some(_original) = avro_schema
+        .iter()
+        .find(|t| t.is_object() && !t.get("alternateof").is_some())
+    {
+        if let Some(alternate) = avro_schema
+            .iter()
+            .find(|t| t.is_object() && t.get("alternateof").is_some())
+        {
             let idx = avro_schema.iter().position(|x| x == alternate).unwrap();
             avro_schema.remove(idx);
         }

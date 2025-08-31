@@ -1,9 +1,9 @@
 #![cfg(feature = "cli")]
 use assert_cmd::Command;
-use tempfile::tempdir;
-use std::fs;
 use insta::assert_json_snapshot;
 use rstest::rstest;
+use std::fs;
+use tempfile::tempdir;
 
 fn run_fixture(schema_path: &str, stem: &str) {
     let dir = tempdir().unwrap();

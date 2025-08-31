@@ -10,7 +10,12 @@ pub fn avro_name(name: &str) -> String {
         .unwrap()
         .replace_all(name, "_")
         .to_string();
-    if val.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false) {
+    if val
+        .chars()
+        .next()
+        .map(|c| c.is_ascii_digit())
+        .unwrap_or(false)
+    {
         val = format!("_{}", val);
     }
     if val.is_empty() || !val.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_') {
@@ -38,26 +43,30 @@ pub fn avro_namespace(name: &str) -> String {
         .unwrap()
         .replace_all(name, "_")
         .to_string();
-    if val.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false) {
+    if val
+        .chars()
+        .next()
+        .map(|c| c.is_ascii_digit())
+        .unwrap_or(false)
+    {
         val = format!("_{}", val);
     }
     val
 }
-
 
 /// Convert string to PascalCase.
 pub fn pascal(input: &str) -> String {
     if input.contains("::") {
         let mut parts = input.split("::");
         let head = parts.next().unwrap();
-        return format!("{}::{}", head, parts.map(pascal).collect::<Vec<_>>().join("::"));
+        return format!(
+            "{}::{}",
+            head,
+            parts.map(pascal).collect::<Vec<_>>().join("::")
+        );
     }
     if input.contains('.') {
-        return input
-            .split('.')
-            .map(pascal)
-            .collect::<Vec<_>>()
-            .join(".");
+        return input.split('.').map(pascal).collect::<Vec<_>>().join(".");
     }
     if input.is_empty() {
         return input.to_string();
@@ -70,13 +79,22 @@ pub fn pascal(input: &str) -> String {
         words = input.split('_').map(|w| w.to_string()).collect();
     } else if input.chars().next().unwrap().is_uppercase() {
         let re = Regex::new(r"[A-Z][a-z0-9_]*\.?").unwrap();
-        words = re.find_iter(input).map(|m| m.as_str().to_string()).collect();
+        words = re
+            .find_iter(input)
+            .map(|m| m.as_str().to_string())
+            .collect();
     } else {
         let re = Regex::new(r"[a-z0-9]+\.?|[A-Z][a-z0-9_]*\.?").unwrap();
-        words = re.find_iter(input).map(|m| m.as_str().to_string()).collect();
+        words = re
+            .find_iter(input)
+            .map(|m| m.as_str().to_string())
+            .collect();
     }
 
-    let mut result = words.into_iter().map(|w| capitalize(&w)).collect::<String>();
+    let mut result = words
+        .into_iter()
+        .map(|w| capitalize(&w))
+        .collect::<String>();
     if startswith_under {
         result = format!("_{}", result);
     }
@@ -88,14 +106,14 @@ pub fn camel(input: &str) -> String {
     if input.contains("::") {
         let mut parts = input.split("::");
         let head = parts.next().unwrap();
-        return format!("{}::{}", head, parts.map(camel).collect::<Vec<_>>().join("::"));
+        return format!(
+            "{}::{}",
+            head,
+            parts.map(camel).collect::<Vec<_>>().join("::")
+        );
     }
     if input.contains('.') {
-        return input
-            .split('.')
-            .map(camel)
-            .collect::<Vec<_>>()
-            .join(".");
+        return input.split('.').map(camel).collect::<Vec<_>>().join(".");
     }
     if input.is_empty() {
         return input.to_string();
@@ -106,10 +124,16 @@ pub fn camel(input: &str) -> String {
         words = input.split('_').map(|w| w.to_string()).collect();
     } else if input.chars().next().unwrap().is_uppercase() {
         let re = Regex::new(r"[A-Z][a-z0-9_]*\.?").unwrap();
-        words = re.find_iter(input).map(|m| m.as_str().to_string()).collect();
+        words = re
+            .find_iter(input)
+            .map(|m| m.as_str().to_string())
+            .collect();
     } else {
         let re = Regex::new(r"[a-z0-9]+\.?|[A-Z][a-z0-9_]*\.?").unwrap();
-        words = re.find_iter(input).map(|m| m.as_str().to_string()).collect();
+        words = re
+            .find_iter(input)
+            .map(|m| m.as_str().to_string())
+            .collect();
     }
 
     let mut iter = words.into_iter();
@@ -124,14 +148,14 @@ pub fn snake(input: &str) -> String {
     if input.contains("::") {
         let mut parts = input.split("::");
         let head = parts.next().unwrap();
-        return format!("{}::{}", head, parts.map(snake).collect::<Vec<_>>().join("::"));
+        return format!(
+            "{}::{}",
+            head,
+            parts.map(snake).collect::<Vec<_>>().join("::")
+        );
     }
     if input.contains('.') {
-        return input
-            .split('.')
-            .map(snake)
-            .collect::<Vec<_>>()
-            .join(".");
+        return input.split('.').map(snake).collect::<Vec<_>>().join(".");
     }
     if input.is_empty() {
         return input.to_string();
@@ -142,13 +166,23 @@ pub fn snake(input: &str) -> String {
         words = input.split('_').map(|w| w.to_string()).collect();
     } else if input.chars().next().unwrap().is_uppercase() {
         let re = Regex::new(r"[A-Z][a-z0-9_]*\.?").unwrap();
-        words = re.find_iter(input).map(|m| m.as_str().to_string()).collect();
+        words = re
+            .find_iter(input)
+            .map(|m| m.as_str().to_string())
+            .collect();
     } else {
         let re = Regex::new(r"[a-z0-9]+\.?|[A-Z][a-z0-9_]*\.?").unwrap();
-        words = re.find_iter(input).map(|m| m.as_str().to_string()).collect();
+        words = re
+            .find_iter(input)
+            .map(|m| m.as_str().to_string())
+            .collect();
     }
 
-    words.into_iter().map(|w| w.to_lowercase()).collect::<Vec<_>>().join("_")
+    words
+        .into_iter()
+        .map(|w| w.to_lowercase())
+        .collect::<Vec<_>>()
+        .join("_")
 }
 
 /// Capitalize first letter
