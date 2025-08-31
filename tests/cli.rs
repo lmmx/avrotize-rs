@@ -1,19 +1,20 @@
+#![cfg(feature = "cli")]
 use assert_cmd::Command;
 use tempfile::tempdir;
 use std::fs;
 use insta::assert_json_snapshot;
+use rstest::rstest;
 
-#[test]
-fn cli_basic_string_schema() {
+fn run_fixture(schema_path: &str, stem: &str) {
     let dir = tempdir().unwrap();
     let input_path = dir.path().join("schema.json");
     let output_path = dir.path().join("schema.avsc");
 
-    // Load JSON Schema from fixture
-    let schema = include_str!("fixtures/jsonschema/basic_string_schema.json");
+    // Load schema and copy into tmpdir
+    let schema = fs::read_to_string(schema_path).unwrap();
     fs::write(&input_path, schema).unwrap();
 
-    // Run the CLI
+    // Run CLI
     Command::cargo_bin("jsonschema2avro")
         .unwrap()
         .arg(input_path.to_str().unwrap())
@@ -25,6 +26,15 @@ fn cli_basic_string_schema() {
     let output = fs::read_to_string(&output_path).unwrap();
     let json: serde_json::Value = serde_json::from_str(&output).unwrap();
 
-    // Snapshot
-    assert_json_snapshot!("basic_string_schema", json);
+    // Compare with snapshot
+    assert_json_snapshot!(stem, json);
+}
+
+#[rstest]
+#[case("basic_string_schema")]
+#[case("basic_string_schema_with_title")]
+#[case("nested_object_and_array")]
+fn cli_fixtures(#[case] stem: &str) {
+    let schema_path = format!("tests/fixtures/jsonschema/{stem}.json");
+    run_fixture(&schema_path, stem);
 }

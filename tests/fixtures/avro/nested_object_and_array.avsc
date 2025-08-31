@@ -1,0 +1,54 @@
+{
+    "type": "record",
+    "name": "document",
+    "namespace": "com.example.complex_object",
+    "fields": [
+        {
+            "name": "name",
+            "type": "string"
+        },
+        {
+            "name": "age",
+            "type": "int"
+        },
+        {
+            "name": "address",
+            "type": [
+                "null",
+                {
+                    "name": "address",
+                    "type": "record",
+                    "namespace": "com.example.complex_object.document_types",
+                    "fields": [
+                        {
+                            "name": "street",
+                            "type": "string"
+                        },
+                        {
+                            "name": "city",
+                            "type": "string"
+                        },
+                        {
+                            "name": "state",
+                            "type": "string"
+                        },
+                        {
+                            "name": "postalCode",
+                            "type": "string"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "hobbies",
+            "type": [
+                "null",
+                {
+                    "type": "array",
+                    "items": "string"
+                }
+            ]
+        }
+    ]
+}

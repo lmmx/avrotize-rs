@@ -25,3 +25,19 @@ refresh-gen:
         # Generating $jsonschema -> $avro
         avrotize j2a $jsonschema --out $avro
     done
+
+# Diff a fixture file against its snapshot
+difft fixture:
+    #!/usr/bin/env -S echo-comment --shell-flags="-eu" --color bold-yellow
+    fixture="{{fixture}}"
+    stem=$(basename $fixture .avsc)
+    snapshot=tests/snapshots/cli__${stem}.snap
+    # Diff of $fixture -> $snapshot
+    difft {{fixture}} <(sed '1,/^---/d' $snapshot)
+
+# Diff all fixture files against their snapshots
+difft-all:
+    #!/usr/bin/env -S echo-comment --shell-flags="-eu" --color bold-yellow
+    for avsc in tests/fixtures/avro/*.avsc; do
+        just difft $avsc
+    done

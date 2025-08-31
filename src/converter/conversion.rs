@@ -211,7 +211,15 @@ pub fn json_schema_object_to_avro_record(
     }
 
     // Normal object → record
-    let record_name = pascal(name);
+    let title = json_object.get("title").and_then(|t| t.as_str());
+    let raw_name = if !name.is_empty() {
+        name
+    } else if let Some(t) = title {
+        t
+    } else {
+        ""   // convert nulls to empty string, avro_name will turn it into "_"
+    };
+    let record_name = avro_name(raw_name);
     let mut avro_record = create_avro_record(&record_name, namespace, Vec::new());
 
     // Handle fields
