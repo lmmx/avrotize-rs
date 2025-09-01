@@ -334,6 +334,11 @@ pub fn json_schema_object_to_avro_record(
             if let Some(c) = field_schema.get("const").cloned() {
                 field["const"] = c;
             }
+            if let Some(d) = field_schema.get("default").cloned() {
+                if !d.is_object() && !d.is_array() {
+                    field["default"] = d;
+                }
+            }
             if let Some(desc) = field_schema.get("description").and_then(|d| d.as_str()) {
                 field["doc"] = Value::String(desc.to_string());
             }
