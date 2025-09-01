@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Nullable Field",
+  "type": "object",
+  "properties": {
+    "maybeName": {
+      "type": ["string", "null"]
+    }
+  }
+}

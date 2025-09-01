@@ -1,0 +1,16 @@
+{
+    "type": "record",
+    "name": "document",
+    "namespace": "object_with_default_value",
+    "fields": [
+        {
+            "name": "level",
+            "type": [
+                "null",
+                "int"
+            ],
+            "default": 1,
+            "doc": "Defaults to 1 if not provided"
+        }
+    ]
+}

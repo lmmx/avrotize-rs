@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OneOf Example",
+  "type": "object",
+  "properties": {
+    "value": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "integer" }
+      ]
+    }
+  },
+  "required": ["value"]
+}

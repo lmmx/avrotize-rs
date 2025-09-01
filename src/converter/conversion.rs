@@ -334,6 +334,9 @@ pub fn json_schema_object_to_avro_record(
             if let Some(desc) = field_schema.get("description").and_then(|d| d.as_str()) {
                 field["doc"] = Value::String(desc.to_string());
             }
+            if let Some(c) = field_schema.get("const").cloned() {
+                field["const"] = c;
+            }
             avro_record["fields"].as_array_mut().unwrap().push(field);
             dependencies.extend(deps);
         }
@@ -523,7 +526,11 @@ pub fn json_type_to_avro_type(
                 .iter()
                 .filter_map(|v| v.as_str().map(avro_name))
                 .collect();
-            let enum_type = create_enum_type(&local_name, namespace, &symbols);
+            let mut enum_type = create_enum_type(&local_name, namespace, &symbols);
+            if let Some(desc) = obj.get("description").and_then(|d| d.as_str()) {
+                enum_type["doc"] = Value::String(desc.to_string());
+            }
+
             return merge_avro_schemas(
                 &[avro_type, enum_type],
                 avro_schema,

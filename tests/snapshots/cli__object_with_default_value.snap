@@ -1,0 +1,19 @@
+---
+source: tests/cli.rs
+expression: json
+---
+{
+  "type": "record",
+  "name": "document",
+  "namespace": "object_with_default_value",
+  "fields": [
+    {
+      "name": "level",
+      "type": [
+        "null",
+        "int"
+      ],
+      "doc": "Defaults to 1 if not provided"
+    }
+  ]
+}

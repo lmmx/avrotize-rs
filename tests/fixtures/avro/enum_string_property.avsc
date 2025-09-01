@@ -10,8 +10,8 @@
                 "name": "color",
                 "namespace": "enum_string_property.document_types",
                 "symbols": [
-                    "blue",
                     "red",
+                    "blue",
                     "green"
                 ]
             },
