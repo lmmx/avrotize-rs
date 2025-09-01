@@ -18,8 +18,8 @@ expression: json
         ],
         "doc": "This field is always 'fixedValue'"
       },
-      "doc": "This field is always 'fixedValue'",
-      "const": "fixedValue"
+      "const": "fixedValue",
+      "doc": "This field is always 'fixedValue'"
     }
   ]
 }
