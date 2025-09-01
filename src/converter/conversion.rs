@@ -271,77 +271,104 @@ pub fn json_schema_object_to_avro_record(
     // Handle fields
     if let Some(props) = json_object.get("properties").and_then(|p| p.as_object()) {
         for (field_name, field_schema) in props {
+            // Normalize: wrap single object as a one-element array
+            let schema_list: Vec<&Value> = if field_schema.is_array() {
+                field_schema.as_array().unwrap().iter().collect()
+            } else {
+                vec![field_schema]
+            };
+
+            let mut const_val: Option<Value> = None;
+            let mut default_val: Option<Value> = None;
+            let mut desc_val: Option<String> = None;
+            let mut last_avro_type: Option<Value> = None;
             let mut deps = Vec::new();
 
-            // 👇 special-case $ref so we don't expand to the monster union
-            let mut avro_field_type =
-                if let Some(ref_str) = field_schema.get("$ref").and_then(|r| r.as_str()) {
-                    if let Some(def_name) = ref_str.strip_prefix("#/$defs/") {
-                        // Just reference the already-defined type
-                        json!(format!("{}.{}", effective_namespace, def_name))
-                    } else if let Some(ptr) = ref_str.strip_prefix('#') {
-                        if let Some(resolved) = json_schema.pointer(ptr) {
-                            json_schema_object_to_avro_record(
-                                field_name,
-                                resolved,
-                                &effective_namespace,
-                                json_schema,
-                                base_uri,
-                                avro_schema,
-                                record_stack,
-                            )
+            for schema_obj in schema_list {
+                if !schema_obj.is_object() {
+                    continue;
+                }
+
+                if let Some(c) = schema_obj.get("const") {
+                    const_val = Some(c.clone());
+                }
+                if let Some(d) = schema_obj.get("default") {
+                    if !d.is_object() && !d.is_array() {
+                        default_val = Some(d.clone());
+                    }
+                }
+                if let Some(desc) = schema_obj.get("description").and_then(|d| d.as_str()) {
+                    desc_val = Some(desc.to_string());
+                }
+
+                // Special case $ref
+                let avro_field_type =
+                    if let Some(ref_str) = schema_obj.get("$ref").and_then(|r| r.as_str()) {
+                        if let Some(def_name) = ref_str.strip_prefix("#/$defs/") {
+                            json!(format!("{}.{}", effective_namespace, def_name))
+                        } else if let Some(ptr) = ref_str.strip_prefix('#') {
+                            if let Some(resolved) = json_schema.pointer(ptr) {
+                                json_schema_object_to_avro_record(
+                                    field_name,
+                                    resolved,
+                                    &effective_namespace,
+                                    json_schema,
+                                    base_uri,
+                                    avro_schema,
+                                    record_stack,
+                                )
+                            } else {
+                                json!("string")
+                            }
                         } else {
+                            eprintln!("WARN: external $ref not supported: {}", ref_str);
                             json!("string")
                         }
                     } else {
-                        eprintln!("WARN: external $ref not supported: {}", ref_str);
-                        json!("string")
-                    }
-                } else {
-                    // Normal case → delegate
-                    json_type_to_avro_type(
-                        field_schema,
-                        &record_name,
-                        field_name,
-                        &effective_namespace,
-                        &mut deps,
-                        json_schema,
-                        base_uri,
-                        avro_schema,
-                        record_stack,
-                        1,
-                    )
-                };
+                        json_type_to_avro_type(
+                            schema_obj,
+                            &record_name,
+                            field_name,
+                            &effective_namespace,
+                            &mut deps,
+                            json_schema,
+                            base_uri,
+                            avro_schema,
+                            record_stack,
+                            1,
+                        )
+                    };
 
-            if avro_field_type.is_null() {
-                avro_field_type = json!("string");
+                last_avro_type = Some(avro_field_type);
             }
 
-            let mut field_type = avro_field_type.clone();
+            // Pick last type seen (or fallback)
+            let mut effective_type = last_avro_type.unwrap_or(json!("string"));
+
+            // Nullable if not required
             if !required_fields.contains(&field_name.as_str()) {
-                match &avro_field_type {
+                match &effective_type {
                     Value::Array(arr) if arr.iter().any(|t| t == "null") => {}
                     _ => {
-                        field_type = json!(["null", avro_field_type]);
+                        effective_type = json!(["null", effective_type]);
                     }
                 }
             }
 
             let mut field = json!({
                 "name": field_name,
-                "type": field_type
+                "type": effective_type
             });
-            if let Some(c) = field_schema.get("const").cloned() {
+            if let Some(c) = const_val {
                 field["const"] = c;
             }
-            if let Some(d) = field_schema.get("default").cloned() {
-                if !d.is_object() && !d.is_array() {
-                    field["default"] = d;
-                }
+            if let Some(d) = default_val {
+                field["default"] = d;
             }
-            if let Some(desc) = field_schema.get("description").and_then(|d| d.as_str()) {
-                field["doc"] = Value::String(desc.to_string());
+            if let Some(desc) = desc_val {
+                field["doc"] = Value::String(desc);
             }
+
             avro_record["fields"].as_array_mut().unwrap().push(field);
             dependencies.extend(deps);
         }
