@@ -44,6 +44,6 @@ For each fixture, an Avro schema is generated into `tests/fixtures/avro/` and co
 
 ## Acknowledgements
 
-* Original [avrotize](https://github.com/oslabs-beta/avrotize) by @oslabs-beta
+* Original [avrotize](https://github.com/clemensv/avrotize/) by Clemens Vasters.
 * [Apache Avro](https://avro.apache.org/) project
 * [difftastic](https://difftastic.wilfred.me.uk/) for beautiful test snapshot diffs
