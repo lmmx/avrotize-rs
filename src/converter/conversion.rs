@@ -331,11 +331,11 @@ pub fn json_schema_object_to_avro_record(
                 "name": field_name,
                 "type": field_type
             });
-            if let Some(desc) = field_schema.get("description").and_then(|d| d.as_str()) {
-                field["doc"] = Value::String(desc.to_string());
-            }
             if let Some(c) = field_schema.get("const").cloned() {
                 field["const"] = c;
+            }
+            if let Some(desc) = field_schema.get("description").and_then(|d| d.as_str()) {
+                field["doc"] = Value::String(desc.to_string());
             }
             avro_record["fields"].as_array_mut().unwrap().push(field);
             dependencies.extend(deps);
