@@ -93,11 +93,10 @@ pub fn id_to_avro_namespace(id: &str) -> String {
     if let Ok(parsed_url) = Url::parse(id) {
         // Path → strip extension, replace `-` with `_`, split, reverse
         let path_no_ext = {
-            let path = parsed_url.path();
-            match Path::new(path).file_stem() {
-                Some(stem) => stem.to_string_lossy().replace('-', "_"),
-                None => path.trim_matches('/').replace('-', "_"),
-            }
+            let path = parsed_url.path().trim_matches('/');
+            // Take only the part before the first dot
+            let before_dot = path.split('.').next().unwrap_or("");
+            before_dot.replace('-', "_")
         };
         let path_segments: Vec<&str> = path_no_ext.split('/').filter(|s| !s.is_empty()).collect();
         let reversed_path_segments: Vec<&str> = path_segments.into_iter().rev().collect();
