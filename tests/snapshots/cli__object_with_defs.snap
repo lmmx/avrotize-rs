@@ -1,0 +1,39 @@
+---
+source: tests/cli.rs
+expression: json
+---
+[
+  {
+    "type": "record",
+    "name": "address",
+    "namespace": "object_with_defs",
+    "fields": [
+      {
+        "name": "street",
+        "type": "string"
+      },
+      {
+        "name": "city",
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "type": "record",
+    "name": "document",
+    "namespace": "object_with_defs",
+    "fields": [
+      {
+        "name": "shippingAddress",
+        "type": "object_with_defs.address"
+      },
+      {
+        "name": "billingAddress",
+        "type": [
+          "null",
+          "object_with_defs.address"
+        ]
+      }
+    ]
+  }
+]

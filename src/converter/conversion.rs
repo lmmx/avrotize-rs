@@ -109,6 +109,34 @@ pub fn json_schema_object_to_avro_record(
 ) -> Value {
     let mut dependencies: Vec<String> = Vec::new();
 
+    if let Some(ref_str) = json_object.get("$ref").and_then(|r| r.as_str()) {
+        if let Some(def_name) = ref_str.strip_prefix("#/$defs/") {
+            // 👉 Just return the Avro type name that was registered by process_definition
+            let fq_name = format!("{}.{}", namespace, def_name);
+            return json!(fq_name);
+        }
+
+        if let Some(ptr) = ref_str.strip_prefix('#') {
+            if let Some(resolved) = json_schema.pointer(ptr) {
+                return json_schema_object_to_avro_record(
+                    name,
+                    resolved,
+                    namespace,
+                    json_schema,
+                    base_uri,
+                    avro_schema,
+                    record_stack,
+                );
+            }
+        }
+
+        eprintln!(
+            "WARN: external $ref resolution not yet implemented: {}",
+            ref_str
+        );
+        return json!("string"); // placeholder
+    }
+
     // Composition keywords: allOf, oneOf, anyOf
     if has_composition_keywords(json_object) {
         let t = json_type_to_avro_type(
@@ -244,18 +272,47 @@ pub fn json_schema_object_to_avro_record(
     if let Some(props) = json_object.get("properties").and_then(|p| p.as_object()) {
         for (field_name, field_schema) in props {
             let mut deps = Vec::new();
-            let mut avro_field_type = json_type_to_avro_type(
-                field_schema,
-                &record_name,
-                field_name,
-                &effective_namespace,
-                &mut deps,
-                json_schema,
-                base_uri,
-                avro_schema,
-                record_stack,
-                1,
-            );
+
+            // 👇 special-case $ref so we don't expand to the monster union
+            let mut avro_field_type =
+                if let Some(ref_str) = field_schema.get("$ref").and_then(|r| r.as_str()) {
+                    if let Some(def_name) = ref_str.strip_prefix("#/$defs/") {
+                        // Just reference the already-defined type
+                        json!(format!("{}.{}", effective_namespace, def_name))
+                    } else if let Some(ptr) = ref_str.strip_prefix('#') {
+                        if let Some(resolved) = json_schema.pointer(ptr) {
+                            json_schema_object_to_avro_record(
+                                field_name,
+                                resolved,
+                                &effective_namespace,
+                                json_schema,
+                                base_uri,
+                                avro_schema,
+                                record_stack,
+                            )
+                        } else {
+                            json!("string")
+                        }
+                    } else {
+                        eprintln!("WARN: external $ref not supported: {}", ref_str);
+                        json!("string")
+                    }
+                } else {
+                    // Normal case → delegate
+                    json_type_to_avro_type(
+                        field_schema,
+                        &record_name,
+                        field_name,
+                        &effective_namespace,
+                        &mut deps,
+                        json_schema,
+                        base_uri,
+                        avro_schema,
+                        record_stack,
+                        1,
+                    )
+                };
+
             if avro_field_type.is_null() {
                 avro_field_type = json!("string");
             }
