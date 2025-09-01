@@ -14,14 +14,16 @@ pub mod utils;
 
 pub use state::JsonToAvroConverter;
 
+use definitions::{process_definition, process_definition_list};
+use postprocess::postprocess_schema;
+use utils::id_to_avro_namespace;
+
 use serde_json::Value;
 use std::fs;
 use std::path::Path;
 use url::Url;
 
 use crate::common::traversal::find_schema_node;
-use crate::converter::definitions::{process_definition, process_definition_list};
-use crate::converter::postprocess::postprocess_schema;
 use crate::dependency_resolver::{inline_dependencies_of, sort_messages_by_dependencies};
 
 /// Convert an in-memory JSON Schema into an Avro Schema.
@@ -150,17 +152,27 @@ pub fn convert_jsons_to_avro(
     let json_schema: Value =
         serde_json::from_str(&content).map_err(|e| format!("Invalid JSON schema: {e}"))?;
 
-    let namespace = namespace.unwrap_or_else(|| {
+    let mut ns: String = namespace.map(|s| s.to_string()).unwrap_or_else(|| {
         Path::new(json_schema_file_path)
             .file_stem()
             .unwrap()
             .to_str()
             .unwrap()
+            .to_string()
     });
+
+    if let Some(id) = json_schema.get("$id").and_then(|v| v.as_str()) {
+        let id_ns = id_to_avro_namespace(id);
+        if !id_ns.is_empty() {
+            ns = id_ns;
+        }
+    }
+
+    dbg!(&ns);
 
     let avro_schema = jsons_to_avro(
         &json_schema,
-        namespace,
+        &ns,
         json_schema_file_path,
         split_top_level_records,
     );

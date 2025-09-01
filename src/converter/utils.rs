@@ -1,5 +1,8 @@
 use serde_json::Value;
 
+use std::path::Path;
+use url::Url;
+
 use crate::common::names::avro_namespace;
 
 /// Compose a namespace string from multiple parts.
@@ -81,5 +84,43 @@ pub fn lift_dependencies_from_type(avro_type: &mut Value, dependencies: &mut Vec
                 }
             }
         }
+    }
+}
+
+/// Convert a JSON Schema `$id` URI into an Avro namespace.
+/// Mirrors the Python implementation.
+pub fn id_to_avro_namespace(id: &str) -> String {
+    if let Ok(parsed_url) = Url::parse(id) {
+        // Path → strip extension, replace `-` with `_`, split, reverse
+        let path_no_ext = {
+            let path = parsed_url.path();
+            match Path::new(path).file_stem() {
+                Some(stem) => stem.to_string_lossy().replace('-', "_"),
+                None => path.trim_matches('/').replace('-', "_"),
+            }
+        };
+        let path_segments: Vec<&str> = path_no_ext.split('/').filter(|s| !s.is_empty()).collect();
+        let reversed_path_segments: Vec<&str> = path_segments.into_iter().rev().collect();
+        let namespace_suffix = compose_namespace(&reversed_path_segments);
+
+        // Host → reversed segments
+        let namespace_prefix = parsed_url
+            .host_str()
+            .map(|h| {
+                let parts: Vec<&str> = h.split('.').rev().collect();
+                compose_namespace(&parts)
+            })
+            .unwrap_or_default();
+
+        // Combine prefix + suffix
+        if namespace_prefix.is_empty() {
+            namespace_suffix
+        } else if namespace_suffix.is_empty() {
+            namespace_prefix
+        } else {
+            compose_namespace(&[&namespace_prefix, &namespace_suffix])
+        }
+    } else {
+        "".to_string() // let caller decide fallback (e.g. filename stem)
     }
 }

@@ -5,7 +5,7 @@ expression: json
 {
   "type": "record",
   "name": "document",
-  "namespace": "schema",
+  "namespace": "basic_string_schema_with_title",
   "fields": [
     {
       "name": "name",

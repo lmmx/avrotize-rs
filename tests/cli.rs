@@ -7,8 +7,8 @@ use tempfile::tempdir;
 
 fn run_fixture(schema_path: &str, stem: &str) {
     let dir = tempdir().unwrap();
-    let input_path = dir.path().join("schema.json");
-    let output_path = dir.path().join("schema.avsc");
+    let input_path = dir.path().join(format!("{stem}.json"));
+    let output_path = dir.path().join(format!("{stem}.avsc"));
 
     // Load schema and copy into tmpdir
     let schema = fs::read_to_string(schema_path).unwrap();

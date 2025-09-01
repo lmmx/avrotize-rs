@@ -61,7 +61,10 @@ pub fn process_definition(
     let mut avro_schema_items = match avro_schema_item_list {
         Value::Array(arr) => arr,
         item if item.is_object() => vec![item],
-        _ => return None,
+        _ => {
+            dbg!("process_definition: returning None");
+            return None;
+        }
     };
 
     if is_root && avro_schema_items.len() > 1 {
@@ -74,6 +77,11 @@ pub fn process_definition(
             Value::Array(avro_schema_items.clone()),
         );
         register_type(avro_schema, wrapper.clone());
+        dbg!((
+            "process_definition: root wrapper",
+            wrapper.get("namespace"),
+            wrapper.get("name")
+        ));
         return Some((
             wrapper
                 .get("namespace")
@@ -102,6 +110,7 @@ pub fn process_definition(
             .unwrap_or(namespace);
 
         if is_standalone_avro_type(&avro_item) && !is_empty_type(&avro_item) {
+            dbg!(("process_definition: standalone", ns, name));
             register_type(avro_schema, avro_item.clone());
             return Some((ns.to_string(), name.to_string()));
         }
@@ -112,6 +121,7 @@ pub fn process_definition(
             lift_dependencies_from_type(&mut item_copy, &mut deps);
 
             let wrapper = create_wrapper_record(schema_name, ns, name, &deps, item_copy);
+            dbg!(("process_definition: root wrapper", ns, name));
             register_type(avro_schema, wrapper.clone());
             return Some((
                 wrapper

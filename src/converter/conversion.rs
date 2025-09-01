@@ -220,7 +220,18 @@ pub fn json_schema_object_to_avro_record(
         "" // convert nulls to empty string, avro_name will turn it into "_"
     };
     let record_name = avro_name(raw_name);
-    let mut avro_record = create_avro_record(&record_name, namespace, Vec::new());
+
+    // Adjust namespace if nested (based on parent, not current)
+    let effective_namespace = if let Some(parent) = record_stack.last() {
+        crate::converter::utils::compose_namespace(&[namespace, &format!("{}_types", parent)])
+    } else {
+        namespace.to_string()
+    };
+
+    // (IMPORTANT: NO EARLY RETURNS MUST FOLLOW THIS WITHOUT POP)
+    record_stack.push(record_name.clone());
+
+    let mut avro_record = create_avro_record(&record_name, &effective_namespace, Vec::new());
 
     // Collect "required" list from the parent object
     let required_fields: Vec<&str> = json_object
@@ -237,7 +248,7 @@ pub fn json_schema_object_to_avro_record(
                 field_schema,
                 &record_name,
                 field_name,
-                namespace,
+                &effective_namespace,
                 &mut deps,
                 json_schema,
                 base_uri,
@@ -272,7 +283,7 @@ pub fn json_schema_object_to_avro_record(
     let pattern_types = handle_pattern_properties(
         json_object,
         &record_name,
-        namespace,
+        &effective_namespace,
         base_uri,
         avro_schema,
         record_stack,
@@ -285,7 +296,7 @@ pub fn json_schema_object_to_avro_record(
     if let Some(additional) = handle_additional_properties(
         json_object,
         &record_name,
-        namespace,
+        &effective_namespace,
         base_uri,
         avro_schema,
         record_stack,
@@ -305,6 +316,8 @@ pub fn json_schema_object_to_avro_record(
         avro_record["dependencies"] =
             Value::Array(dependencies.into_iter().map(Value::String).collect());
     }
+
+    record_stack.pop();
 
     avro_record
 }
