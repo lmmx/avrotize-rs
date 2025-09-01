@@ -13,6 +13,7 @@ expression: json
         "null",
         "int"
       ],
+      "default": 1,
       "doc": "Defaults to 1 if not provided"
     }
   ]
