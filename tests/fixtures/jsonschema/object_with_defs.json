@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Object with Defs",
+  "type": "object",
+  "$defs": {
+    "address": {
+      "type": "object",
+      "properties": {
+        "street": { "type": "string" },
+        "city": { "type": "string" }
+      },
+      "required": ["street", "city"]
+    }
+  },
+  "properties": {
+    "shippingAddress": { "$ref": "#/$defs/address" },
+    "billingAddress": { "$ref": "#/$defs/address" }
+  },
+  "required": ["shippingAddress"]
+}

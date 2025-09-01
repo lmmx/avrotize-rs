@@ -34,7 +34,12 @@ fn run_fixture(schema_path: &str, stem: &str) {
 #[case("basic_string_schema")]
 #[case("basic_string_schema_with_title")]
 #[case("nested_object_and_array")]
+#[case("object_with_boolean_and_number")]
+#[case("enum_string_property")]
+#[case("array_of_objects")]
+#[case("object_with_optional")]
 fn cli_fixtures(#[case] stem: &str) {
     let schema_path = format!("tests/fixtures/jsonschema/{stem}.json");
     run_fixture(&schema_path, stem);
 }
+// #[case("object_with_defs")]

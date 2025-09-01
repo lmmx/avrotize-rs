@@ -1,0 +1,25 @@
+---
+source: tests/cli.rs
+expression: json
+---
+{
+  "type": "record",
+  "name": "document",
+  "namespace": "enum_string_property",
+  "fields": [
+    {
+      "name": "color",
+      "type": {
+        "type": "enum",
+        "name": "color",
+        "namespace": "enum_string_property.document_types",
+        "symbols": [
+          "red",
+          "green",
+          "blue"
+        ]
+      },
+      "doc": "One of a fixed set of colors"
+    }
+  ]
+}

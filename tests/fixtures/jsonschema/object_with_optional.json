@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Object with Optional Fields",
+  "type": "object",
+  "properties": {
+    "id": { "type": "integer" },
+    "nickname": { "type": "string" }
+  },
+  "required": ["id"]
+}
