@@ -1,0 +1,22 @@
+---
+source: tests/cli.rs
+expression: json
+---
+{
+  "type": "record",
+  "name": "document",
+  "namespace": "object_with_optional",
+  "fields": [
+    {
+      "name": "id",
+      "type": "int"
+    },
+    {
+      "name": "nickname",
+      "type": [
+        "null",
+        "string"
+      ]
+    }
+  ]
+}

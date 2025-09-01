@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Enum String Property",
+  "type": "object",
+  "properties": {
+    "color": {
+      "type": "string",
+      "enum": ["red", "green", "blue"],
+      "description": "One of a fixed set of colors"
+    }
+  },
+  "required": ["color"]
+}

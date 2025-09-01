@@ -109,6 +109,34 @@ pub fn json_schema_object_to_avro_record(
 ) -> Value {
     let mut dependencies: Vec<String> = Vec::new();
 
+    if let Some(ref_str) = json_object.get("$ref").and_then(|r| r.as_str()) {
+        if let Some(def_name) = ref_str.strip_prefix("#/$defs/") {
+            // 👉 Just return the Avro type name that was registered by process_definition
+            let fq_name = format!("{}.{}", namespace, def_name);
+            return json!(fq_name);
+        }
+
+        if let Some(ptr) = ref_str.strip_prefix('#') {
+            if let Some(resolved) = json_schema.pointer(ptr) {
+                return json_schema_object_to_avro_record(
+                    name,
+                    resolved,
+                    namespace,
+                    json_schema,
+                    base_uri,
+                    avro_schema,
+                    record_stack,
+                );
+            }
+        }
+
+        eprintln!(
+            "WARN: external $ref resolution not yet implemented: {}",
+            ref_str
+        );
+        return json!("string"); // placeholder
+    }
+
     // Composition keywords: allOf, oneOf, anyOf
     if has_composition_keywords(json_object) {
         let t = json_type_to_avro_type(
@@ -220,7 +248,18 @@ pub fn json_schema_object_to_avro_record(
         "" // convert nulls to empty string, avro_name will turn it into "_"
     };
     let record_name = avro_name(raw_name);
-    let mut avro_record = create_avro_record(&record_name, namespace, Vec::new());
+
+    // Adjust namespace if nested (based on parent, not current)
+    let effective_namespace = if let Some(parent) = record_stack.last() {
+        crate::converter::utils::compose_namespace(&[namespace, &format!("{}_types", parent)])
+    } else {
+        namespace.to_string()
+    };
+
+    // (IMPORTANT: NO EARLY RETURNS MUST FOLLOW THIS WITHOUT POP)
+    record_stack.push(record_name.clone());
+
+    let mut avro_record = create_avro_record(&record_name, &effective_namespace, Vec::new());
 
     // Collect "required" list from the parent object
     let required_fields: Vec<&str> = json_object
@@ -233,18 +272,47 @@ pub fn json_schema_object_to_avro_record(
     if let Some(props) = json_object.get("properties").and_then(|p| p.as_object()) {
         for (field_name, field_schema) in props {
             let mut deps = Vec::new();
-            let mut avro_field_type = json_type_to_avro_type(
-                field_schema,
-                &record_name,
-                field_name,
-                namespace,
-                &mut deps,
-                json_schema,
-                base_uri,
-                avro_schema,
-                record_stack,
-                1,
-            );
+
+            // 👇 special-case $ref so we don't expand to the monster union
+            let mut avro_field_type =
+                if let Some(ref_str) = field_schema.get("$ref").and_then(|r| r.as_str()) {
+                    if let Some(def_name) = ref_str.strip_prefix("#/$defs/") {
+                        // Just reference the already-defined type
+                        json!(format!("{}.{}", effective_namespace, def_name))
+                    } else if let Some(ptr) = ref_str.strip_prefix('#') {
+                        if let Some(resolved) = json_schema.pointer(ptr) {
+                            json_schema_object_to_avro_record(
+                                field_name,
+                                resolved,
+                                &effective_namespace,
+                                json_schema,
+                                base_uri,
+                                avro_schema,
+                                record_stack,
+                            )
+                        } else {
+                            json!("string")
+                        }
+                    } else {
+                        eprintln!("WARN: external $ref not supported: {}", ref_str);
+                        json!("string")
+                    }
+                } else {
+                    // Normal case → delegate
+                    json_type_to_avro_type(
+                        field_schema,
+                        &record_name,
+                        field_name,
+                        &effective_namespace,
+                        &mut deps,
+                        json_schema,
+                        base_uri,
+                        avro_schema,
+                        record_stack,
+                        1,
+                    )
+                };
+
             if avro_field_type.is_null() {
                 avro_field_type = json!("string");
             }
@@ -259,10 +327,16 @@ pub fn json_schema_object_to_avro_record(
                 }
             }
 
-            let field = json!({
+            let mut field = json!({
                 "name": field_name,
                 "type": field_type
             });
+            if let Some(desc) = field_schema.get("description").and_then(|d| d.as_str()) {
+                field["doc"] = Value::String(desc.to_string());
+            }
+            if let Some(c) = field_schema.get("const").cloned() {
+                field["const"] = c;
+            }
             avro_record["fields"].as_array_mut().unwrap().push(field);
             dependencies.extend(deps);
         }
@@ -272,7 +346,7 @@ pub fn json_schema_object_to_avro_record(
     let pattern_types = handle_pattern_properties(
         json_object,
         &record_name,
-        namespace,
+        &effective_namespace,
         base_uri,
         avro_schema,
         record_stack,
@@ -285,7 +359,7 @@ pub fn json_schema_object_to_avro_record(
     if let Some(additional) = handle_additional_properties(
         json_object,
         &record_name,
-        namespace,
+        &effective_namespace,
         base_uri,
         avro_schema,
         record_stack,
@@ -305,6 +379,8 @@ pub fn json_schema_object_to_avro_record(
         avro_record["dependencies"] =
             Value::Array(dependencies.into_iter().map(Value::String).collect());
     }
+
+    record_stack.pop();
 
     avro_record
 }
@@ -450,7 +526,11 @@ pub fn json_type_to_avro_type(
                 .iter()
                 .filter_map(|v| v.as_str().map(avro_name))
                 .collect();
-            let enum_type = create_enum_type(&local_name, namespace, &symbols);
+            let mut enum_type = create_enum_type(&local_name, namespace, &symbols);
+            if let Some(desc) = obj.get("description").and_then(|d| d.as_str()) {
+                enum_type["doc"] = Value::String(desc.to_string());
+            }
+
             return merge_avro_schemas(
                 &[avro_type, enum_type],
                 avro_schema,

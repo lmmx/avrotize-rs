@@ -1,0 +1,27 @@
+---
+source: tests/cli.rs
+expression: json
+---
+{
+  "type": "record",
+  "name": "document",
+  "namespace": "object_with_enum_array",
+  "fields": [
+    {
+      "name": "statuses",
+      "type": {
+        "type": "array",
+        "items": {
+          "type": "enum",
+          "name": "statuses",
+          "namespace": "object_with_enum_array.document_types",
+          "symbols": [
+            "NEW",
+            "PROCESSING",
+            "DONE"
+          ]
+        }
+      }
+    }
+  ]
+}

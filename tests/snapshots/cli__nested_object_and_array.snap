@@ -5,7 +5,7 @@ expression: json
 {
   "type": "record",
   "name": "document",
-  "namespace": "schema",
+  "namespace": "com.example.complex_object",
   "fields": [
     {
       "name": "name",
@@ -22,7 +22,7 @@ expression: json
         {
           "type": "record",
           "name": "address",
-          "namespace": "schema",
+          "namespace": "com.example.complex_object.document_types",
           "fields": [
             {
               "name": "street",

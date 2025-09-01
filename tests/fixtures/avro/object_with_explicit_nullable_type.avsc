@@ -1,0 +1,14 @@
+{
+    "type": "record",
+    "name": "document",
+    "namespace": "object_with_explicit_nullable_type",
+    "fields": [
+        {
+            "name": "maybeName",
+            "type": [
+                "null",
+                "string"
+            ]
+        }
+    ]
+}

@@ -1,0 +1,25 @@
+---
+source: tests/cli.rs
+expression: json
+---
+{
+  "type": "record",
+  "name": "document",
+  "namespace": "object_with_const_field",
+  "fields": [
+    {
+      "name": "kind",
+      "type": {
+        "name": "kind",
+        "type": "enum",
+        "namespace": "object_with_const_field",
+        "symbols": [
+          "fixedValue"
+        ],
+        "doc": "This field is always 'fixedValue'"
+      },
+      "doc": "This field is always 'fixedValue'",
+      "const": "fixedValue"
+    }
+  ]
+}

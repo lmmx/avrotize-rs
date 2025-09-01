@@ -7,8 +7,8 @@ use tempfile::tempdir;
 
 fn run_fixture(schema_path: &str, stem: &str) {
     let dir = tempdir().unwrap();
-    let input_path = dir.path().join("schema.json");
-    let output_path = dir.path().join("schema.avsc");
+    let input_path = dir.path().join(format!("{stem}.json"));
+    let output_path = dir.path().join(format!("{stem}.avsc"));
 
     // Load schema and copy into tmpdir
     let schema = fs::read_to_string(schema_path).unwrap();
@@ -34,7 +34,18 @@ fn run_fixture(schema_path: &str, stem: &str) {
 #[case("basic_string_schema")]
 #[case("basic_string_schema_with_title")]
 #[case("nested_object_and_array")]
+#[case("object_with_boolean_and_number")]
+#[case("enum_string_property")]
+#[case("array_of_objects")]
+#[case("object_with_optional")]
+#[case("object_with_defs")]
+#[case("object_with_const_field")]
+#[case("object_with_default_value")]
+#[case("object_with_explicit_nullable_type")]
+#[case("object_with_enum_array")]
 fn cli_fixtures(#[case] stem: &str) {
     let schema_path = format!("tests/fixtures/jsonschema/{stem}.json");
     run_fixture(&schema_path, stem);
 }
+//#[case("object_with_map_via_additional_props")]
+//#[case("object_with_oneof_anyof")]

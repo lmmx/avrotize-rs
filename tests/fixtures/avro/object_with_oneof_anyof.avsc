@@ -1,0 +1,14 @@
+{
+    "type": "record",
+    "name": "document",
+    "namespace": "object_with_oneof_anyof",
+    "fields": [
+        {
+            "name": "value",
+            "type": [
+                "string",
+                "int"
+            ]
+        }
+    ]
+}

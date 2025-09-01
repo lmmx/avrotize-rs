@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Default Value Field",
+  "type": "object",
+  "properties": {
+    "level": {
+      "type": "integer",
+      "default": 1,
+      "description": "Defaults to 1 if not provided"
+    }
+  }
+}

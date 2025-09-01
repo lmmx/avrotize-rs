@@ -1,0 +1,24 @@
+---
+source: tests/cli.rs
+expression: json
+---
+{
+  "type": "record",
+  "name": "document",
+  "namespace": "object_with_boolean_and_number",
+  "fields": [
+    {
+      "name": "enabled",
+      "type": "boolean",
+      "doc": "Feature toggle"
+    },
+    {
+      "name": "count",
+      "type": [
+        "null",
+        "float"
+      ],
+      "doc": "A non-negative floating-point number"
+    }
+  ]
+}

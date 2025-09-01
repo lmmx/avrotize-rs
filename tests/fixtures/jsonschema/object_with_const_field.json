@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Const Field",
+  "type": "object",
+  "properties": {
+    "kind": {
+      "const": "fixedValue",
+      "description": "This field is always 'fixedValue'"
+    }
+  },
+  "required": ["kind"]
+}
