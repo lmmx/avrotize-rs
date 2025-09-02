@@ -35,10 +35,18 @@ difft fixture:
     fixture="{{fixture}}"
     stem=$(basename $fixture .avsc)
     snapshot=tests/snapshots/cli__${stem}.snap
+    jsonschema=tests/fixtures/jsonschema/${stem}.json
+
     if [ ! -f "$snapshot" ]; then
-        # ⚠️  Skipping $stem (no .snap found)\n
+        # ⚠️  Skipping $stem (no .snap found)
         exit 0
     fi
+
+    if [ -f "$jsonschema" ]; then
+        # Input JSON Schema: $jsonschema
+        bat -ljson $jsonschema
+    fi
+
     # Diff of $fixture -> $snapshot
     difft {{fixture}} <(sed '1,/^---/d' $snapshot)
 
@@ -48,7 +56,7 @@ difft-all:
     for avsc in tests/fixtures/avro/*.avsc; do
         stem=$(basename $avsc .avsc)
         if [ -f tests/snapshots/cli__${stem}.diff.snap ]; then
-            # ✅ Skipping ${stem} (diff snapshot exists)\n
+            # ✅ Skipping ${stem} (diff snapshot exists)
             continue
         fi
         just difft $avsc
