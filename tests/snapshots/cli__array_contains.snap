@@ -5,13 +5,14 @@ expression: json
 {
   "type": "record",
   "name": "document_wrapper",
-  "namespace": "utility",
+  "namespace": "array_contains.utility",
   "fields": [
     {
       "name": "items",
       "type": {
         "type": "array",
-        "items": "int"
+        "items": "int",
+        "name": "Array_Contains_Example"
       }
     }
   ]

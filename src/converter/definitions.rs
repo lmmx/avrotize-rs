@@ -11,6 +11,7 @@ use crate::converter::utils::lift_dependencies_from_type;
 pub fn process_definition_list(
     json_schema: &Value,
     namespace: &str,
+    utility_namespace: &str,
     base_uri: &str,
     avro_schema: &mut Vec<Value>,
     record_stack: &mut Vec<String>,
@@ -23,6 +24,7 @@ pub fn process_definition_list(
                 process_definition(
                     json_schema,
                     namespace,
+                    utility_namespace,
                     base_uri,
                     avro_schema,
                     record_stack,
@@ -41,6 +43,7 @@ pub fn process_definition_list(
 pub fn process_definition(
     json_schema: &Value,
     namespace: &str,
+    utility_namespace: &str,
     base_uri: &str,
     avro_schema: &mut Vec<Value>,
     record_stack: &mut Vec<String>,
@@ -52,6 +55,7 @@ pub fn process_definition(
         schema_name,
         schema,
         namespace,
+        utility_namespace,
         json_schema,
         base_uri,
         avro_schema,
@@ -62,7 +66,7 @@ pub fn process_definition(
         Value::Array(arr) => arr,
         item if item.is_object() => vec![item],
         _ => {
-            dbg!("process_definition: returning None");
+            // dbg!("process_definition: returning None");
             return None;
         }
     };
@@ -77,11 +81,11 @@ pub fn process_definition(
             Value::Array(avro_schema_items.clone()),
         );
         register_type(avro_schema, wrapper.clone());
-        dbg!((
-            "process_definition: root wrapper",
-            wrapper.get("namespace"),
-            wrapper.get("name")
-        ));
+        // dbg!((
+        //     "process_definition: root wrapper",
+        //     wrapper.get("namespace"),
+        //     wrapper.get("name")
+        // ));
         return Some((
             wrapper
                 .get("namespace")
@@ -110,7 +114,7 @@ pub fn process_definition(
             .unwrap_or(namespace);
 
         if is_standalone_avro_type(&avro_item) && !is_empty_type(&avro_item) {
-            dbg!(("process_definition: standalone", ns, name));
+            // dbg!(("process_definition: standalone", ns, name));
             register_type(avro_schema, avro_item.clone());
             return Some((ns.to_string(), name.to_string()));
         }
@@ -121,7 +125,7 @@ pub fn process_definition(
             lift_dependencies_from_type(&mut item_copy, &mut deps);
 
             let wrapper = create_wrapper_record(schema_name, ns, name, &deps, item_copy);
-            dbg!(("process_definition: root wrapper", ns, name));
+            // dbg!(("process_definition: root wrapper", ns, name));
             register_type(avro_schema, wrapper.clone());
             return Some((
                 wrapper

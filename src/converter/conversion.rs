@@ -21,6 +21,7 @@ fn handle_pattern_properties(
     json_object: &Value,
     record_name: &str,
     namespace: &str,
+    utility_namespace: &str,
     base_uri: &str,
     avro_schema: &mut Vec<Value>,
     record_stack: &mut Vec<String>,
@@ -39,6 +40,7 @@ fn handle_pattern_properties(
                 record_name,
                 pattern,
                 namespace,
+                utility_namespace,
                 &mut deps,
                 json_object,
                 base_uri,
@@ -59,6 +61,7 @@ fn handle_additional_properties(
     json_object: &Value,
     record_name: &str,
     namespace: &str,
+    utility_namespace: &str,
     base_uri: &str,
     avro_schema: &mut Vec<Value>,
     record_stack: &mut Vec<String>,
@@ -80,6 +83,7 @@ fn handle_additional_properties(
                 record_name,
                 &(record_name.to_string() + "_extensions"),
                 namespace,
+                utility_namespace,
                 &mut deps,
                 json_object,
                 base_uri,
@@ -102,6 +106,7 @@ pub fn json_schema_object_to_avro_record(
     name: &str,
     json_object: &Value,
     namespace: &str,
+    utility_namespace: &str,
     json_schema: &Value,
     base_uri: &str,
     avro_schema: &mut Vec<Value>,
@@ -122,6 +127,7 @@ pub fn json_schema_object_to_avro_record(
                     name,
                     resolved,
                     namespace,
+                    utility_namespace,
                     json_schema,
                     base_uri,
                     avro_schema,
@@ -144,6 +150,7 @@ pub fn json_schema_object_to_avro_record(
             name,
             "",
             namespace,
+            utility_namespace,
             &mut dependencies,
             json_schema,
             base_uri,
@@ -153,9 +160,21 @@ pub fn json_schema_object_to_avro_record(
         );
 
         let mut avro_type = if t.is_array() {
-            create_wrapper_record(&(name.to_string() + "_union"), "utility", "options", &[], t)
+            create_wrapper_record(
+                &(name.to_string() + "_union"),
+                utility_namespace,
+                "options",
+                &[],
+                t,
+            )
         } else if t.get("type").is_some() && t.get("type").unwrap() != "record" {
-            create_wrapper_record(&(name.to_string() + "_wrapper"), "utility", "value", &[], t)
+            create_wrapper_record(
+                &(name.to_string() + "_wrapper"),
+                utility_namespace,
+                "value",
+                &[],
+                t,
+            )
         } else {
             t
         };
@@ -198,14 +217,26 @@ pub fn json_schema_object_to_avro_record(
         }
     }
 
+    // Derive a base record name once, from title or name
+    let title = json_object.get("title").and_then(|t| t.as_str());
+    let raw_name = if !name.is_empty() {
+        name
+    } else if let Some(t) = title {
+        t
+    } else {
+        "" // convert nulls to empty string, avro_name will turn it into "_"
+    };
+    let record_name = avro_name(raw_name);
+
     // Arrays
     if is_array_object(json_object) {
         let mut deps = Vec::new();
         let mut array_type = json_type_to_avro_type(
             json_object,
             name,
-            &pascal(name),
+            &record_name,
             namespace,
+            utility_namespace,
             &mut deps,
             json_schema,
             base_uri,
@@ -217,9 +248,15 @@ pub fn json_schema_object_to_avro_record(
             array_type = json!({ "type": "null" });
         }
 
+        if let Some(t) = json_object.get("title").and_then(|t| t.as_str()) {
+            if let Some(obj) = array_type.as_object_mut() {
+                obj.insert("name".to_string(), json!(avro_name(t)));
+            }
+        }
+
         let mut avro_array = create_wrapper_record(
-            &(name.to_string() + "_wrapper"),
-            "utility",
+            &(record_name.clone() + "_wrapper"),
+            utility_namespace,
             "items",
             &[],
             array_type,
@@ -237,17 +274,6 @@ pub fn json_schema_object_to_avro_record(
         }
         return avro_array;
     }
-
-    // Normal object → record
-    let title = json_object.get("title").and_then(|t| t.as_str());
-    let raw_name = if !name.is_empty() {
-        name
-    } else if let Some(t) = title {
-        t
-    } else {
-        "" // convert nulls to empty string, avro_name will turn it into "_"
-    };
-    let record_name = avro_name(raw_name);
 
     // Adjust namespace if nested (based on parent, not current)
     let effective_namespace = if let Some(parent) = record_stack.last() {
@@ -312,6 +338,7 @@ pub fn json_schema_object_to_avro_record(
                                     field_name,
                                     resolved,
                                     &effective_namespace,
+                                    utility_namespace,
                                     json_schema,
                                     base_uri,
                                     avro_schema,
@@ -330,6 +357,7 @@ pub fn json_schema_object_to_avro_record(
                             &record_name,
                             field_name,
                             &effective_namespace,
+                            utility_namespace,
                             &mut deps,
                             json_schema,
                             base_uri,
@@ -379,6 +407,7 @@ pub fn json_schema_object_to_avro_record(
         json_object,
         &record_name,
         &effective_namespace,
+        utility_namespace,
         base_uri,
         avro_schema,
         record_stack,
@@ -392,6 +421,7 @@ pub fn json_schema_object_to_avro_record(
         json_object,
         &record_name,
         &effective_namespace,
+        utility_namespace,
         base_uri,
         avro_schema,
         record_stack,
@@ -423,6 +453,7 @@ pub fn json_type_to_avro_type(
     record_name: &str,
     field_name: &str,
     namespace: &str,
+    utility_namespace: &str,
     dependencies: &mut Vec<String>,
     json_schema: &Value,
     base_uri: &str,
@@ -469,6 +500,7 @@ pub fn json_type_to_avro_type(
                     record_name,
                     field_name,
                     namespace,
+                    utility_namespace,
                     dependencies,
                     json_schema,
                     base_uri,
@@ -487,6 +519,7 @@ pub fn json_type_to_avro_type(
                 record_name,
                 field_name,
                 namespace,
+                utility_namespace,
                 dependencies,
                 json_schema,
                 base_uri,
@@ -520,6 +553,7 @@ pub fn json_type_to_avro_type(
                     record_name,
                     field_name,
                     namespace,
+                    utility_namespace,
                     &mut deps,
                     json_schema,
                     base_uri,
@@ -540,6 +574,7 @@ pub fn json_type_to_avro_type(
                 &local_name,
                 json_type,
                 namespace,
+                utility_namespace,
                 json_schema,
                 base_uri,
                 avro_schema,

@@ -133,7 +133,9 @@ fn diff_fixture(stem: &str) -> Option<String> {
 }
 
 #[rstest]
+#[case("array_contains")]
 #[case("array_of_objects")]
+#[case("array_uniqueitems")]
 #[case("basic_string_schema")]
 #[case("basic_string_schema_with_title")]
 #[case("enum_string_property")]

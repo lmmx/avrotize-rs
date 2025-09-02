@@ -33,6 +33,7 @@ use crate::dependency_resolver::{inline_dependencies_of, sort_messages_by_depend
 pub fn jsons_to_avro(
     json_schema: &Value,
     namespace: &str,
+    utility_namespace: &str,
     base_uri: &str,
     split_top_level: bool,
 ) -> Value {
@@ -54,6 +55,7 @@ pub fn jsons_to_avro(
                     process_definition(
                         json_schema,
                         namespace,
+                        utility_namespace,
                         base_uri,
                         &mut avro_schema,
                         &mut record_stack,
@@ -71,6 +73,7 @@ pub fn jsons_to_avro(
         if let Some((ns, name)) = process_definition(
             json_schema,
             namespace,
+            utility_namespace,
             base_uri,
             &mut avro_schema,
             &mut record_stack,
@@ -135,7 +138,7 @@ pub fn convert_jsons_to_avro(
     json_schema_file_path: &str,
     avro_schema_path: &str,
     namespace: Option<&str>,
-    _utility_namespace: Option<&str>,
+    utility_namespace: Option<&str>,
     _root_class_name: Option<&str>,
     split_top_level_records: bool,
 ) -> Result<(), String> {
@@ -168,11 +171,17 @@ pub fn convert_jsons_to_avro(
         }
     }
 
-    dbg!(&ns);
+    let utility_ns = if let Some(u) = utility_namespace {
+        u.to_string()
+    } else {
+        format!("{ns}.utility")
+    };
+    // dbg!(&ns, &utility_ns);
 
     let avro_schema = jsons_to_avro(
         &json_schema,
         &ns,
+        &utility_ns,
         json_schema_file_path,
         split_top_level_records,
     );
