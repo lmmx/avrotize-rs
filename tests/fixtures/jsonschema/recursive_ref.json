@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/recursive.schema.json",
+  "title": "Recursive Ref Example",
+  "type": "object",
+  "properties": {
+    "name": { "type": "string" },
+    "children": {
+      "type": "array",
+      "items": { "$ref": "https://example.com/recursive.schema.json" }
+    }
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Array with maxItems",
+  "type": "array",
+  "items": { "type": "integer" },
+  "maxItems": 2
+}

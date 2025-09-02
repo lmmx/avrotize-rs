@@ -787,6 +787,7 @@ dependencies = [
  "rstest",
  "serde",
  "serde_json",
+ "similar",
  "tempfile",
  "url",
  "xxhash-rust",

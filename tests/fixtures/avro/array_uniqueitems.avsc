@@ -1,0 +1,15 @@
+{
+    "type": "record",
+    "name": "document_wrapper",
+    "namespace": "array_uniqueitems.utility",
+    "fields": [
+        {
+            "name": "items",
+            "type": {
+                "name": "Unique_Items_Array",
+                "type": "array",
+                "items": "int"
+            }
+        }
+    ]
+}

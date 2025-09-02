@@ -1,0 +1,18 @@
+---
+source: tests/cli.rs
+expression: json
+---
+{
+  "type": "record",
+  "name": "document",
+  "namespace": "object_with_remote_ref",
+  "fields": [
+    {
+      "name": "address",
+      "type": [
+        "null",
+        "string"
+      ]
+    }
+  ]
+}

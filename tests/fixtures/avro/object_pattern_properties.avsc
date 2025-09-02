@@ -1,0 +1,18 @@
+{
+    "type": "record",
+    "name": "document",
+    "namespace": "object_pattern_properties",
+    "fields": [
+        {
+            "name": "document",
+            "type": {
+                "type": "map",
+                "values": [
+                    "string",
+                    "int"
+                ],
+                "name": "document"
+            }
+        }
+    ]
+}

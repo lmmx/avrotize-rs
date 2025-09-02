@@ -1,0 +1,49 @@
+---
+source: tests/cli.rs
+expression: diff
+---
+ {
+
+   "type": "record",
+
+   "name": "document",
+
+   "namespace": "enum_string_property",
+
+   "fields": [
+
+     {
+
+       "name": "color",
+
+       "type": {
+
+         "type": "enum",
+
+         "name": "color",
+
+         "namespace": "enum_string_property.document_types",
+
+         "symbols": [
+
+-          "blue",
+
+           "red",
+
+-          "green"
+
++          "green",
+
++          "blue"
+
+         ]
+
+       },
+
+       "doc": "One of a fixed set of colors"
+
+     }
+
+   ]
+
+ }

@@ -2,7 +2,7 @@ import ".just/commit.just"
 import ".just/hooks.just"
 
 test:
-    cargo test -F cli
+    cargo nextest run -F cli
 
 [working-directory: 'tools/avrotize-gen']
 setup-gen:
@@ -35,6 +35,10 @@ difft fixture:
     fixture="{{fixture}}"
     stem=$(basename $fixture .avsc)
     snapshot=tests/snapshots/cli__${stem}.snap
+    if [ ! -f "$snapshot" ]; then
+        # ⚠️  Skipping $stem (no .snap found)\n
+        exit 0
+    fi
     # Diff of $fixture -> $snapshot
     difft {{fixture}} <(sed '1,/^---/d' $snapshot)
 
@@ -42,5 +46,10 @@ difft fixture:
 difft-all:
     #!/usr/bin/env -S echo-comment --shell-flags="-eu" --color bold-yellow
     for avsc in tests/fixtures/avro/*.avsc; do
+        stem=$(basename $avsc .avsc)
+        if [ -f tests/snapshots/cli__${stem}.diff.snap ]; then
+            # ✅ Skipping ${stem} (diff snapshot exists)\n
+            continue
+        fi
         just difft $avsc
     done

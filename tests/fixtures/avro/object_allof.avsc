@@ -1,0 +1,21 @@
+{
+    "name": "document",
+    "type": "record",
+    "namespace": "object_allof",
+    "fields": [
+        {
+            "name": "a",
+            "type": [
+                "null",
+                "string"
+            ]
+        },
+        {
+            "name": "b",
+            "type": [
+                "null",
+                "int"
+            ]
+        }
+    ]
+}

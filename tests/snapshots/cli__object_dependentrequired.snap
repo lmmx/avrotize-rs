@@ -1,0 +1,25 @@
+---
+source: tests/cli.rs
+expression: json
+---
+{
+  "type": "record",
+  "name": "document",
+  "namespace": "object_dependentrequired",
+  "fields": [
+    {
+      "name": "creditCard",
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    {
+      "name": "billingAddress",
+      "type": [
+        "null",
+        "string"
+      ]
+    }
+  ]
+}

@@ -12,8 +12,8 @@
                     "name": "statuses",
                     "namespace": "object_with_enum_array.document_types",
                     "symbols": [
-                        "DONE",
                         "NEW",
+                        "DONE",
                         "PROCESSING"
                     ]
                 }

@@ -1,0 +1,49 @@
+---
+source: tests/cli.rs
+expression: diff
+---
+ {
+
+   "type": "record",
+
+   "name": "document",
+
+   "namespace": "object_with_const_field",
+
+   "fields": [
+
+     {
+
+       "name": "kind",
+
+       "type": {
+
+         "name": "kind",
+
+-        "doc": "This field is always 'fixedValue'",
+
+         "type": "enum",
+
+         "namespace": "object_with_const_field",
+
+         "symbols": [
+
+           "fixedValue"
+
+-        ]
+
++        ],
+
++        "doc": "This field is always 'fixedValue'"
+
+       },
+
+       "const": "fixedValue",
+
+       "doc": "This field is always 'fixedValue'"
+
+     }
+
+   ]
+
+ }
