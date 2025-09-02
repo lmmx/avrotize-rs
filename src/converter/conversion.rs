@@ -112,6 +112,10 @@ pub fn json_schema_object_to_avro_record(
     avro_schema: &mut Vec<Value>,
     record_stack: &mut Vec<String>,
 ) -> Value {
+    if json_object.as_object().map_or(false, |obj| obj.is_empty()) {
+        dbg!("empty schema → []", name);
+        return Value::Array(vec![]);
+    }
     let mut dependencies: Vec<String> = Vec::new();
 
     if let Some(ref_str) = json_object.get("$ref").and_then(|r| r.as_str()) {
