@@ -24,3 +24,4 @@ tempfile = "3"
 predicates = "3"
 insta = { version = "1", features = ["json"] }
 rstest = "0.26"
+similar = { version = "2.7.0", features = ["inline"] }

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Dependent Schemas Example",
+  "type": "object",
+  "properties": {
+    "country": { "type": "string" },
+    "postalCode": { "type": "string" }
+  },
+  "dependentSchemas": {
+    "country": {
+      "properties": {
+        "postalCode": {
+          "pattern": "^[0-9]{5}$"
+        }
+      }
+    }
+  }
+}

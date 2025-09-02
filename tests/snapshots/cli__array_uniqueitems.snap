@@ -1,0 +1,18 @@
+---
+source: tests/cli.rs
+expression: json
+---
+{
+  "type": "record",
+  "name": "document_wrapper",
+  "namespace": "utility",
+  "fields": [
+    {
+      "name": "items",
+      "type": {
+        "type": "array",
+        "items": "int"
+      }
+    }
+  ]
+}

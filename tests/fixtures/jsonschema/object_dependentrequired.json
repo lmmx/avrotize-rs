@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Dependent Required Example",
+  "type": "object",
+  "properties": {
+    "creditCard": { "type": "string" },
+    "billingAddress": { "type": "string" }
+  },
+  "dependentRequired": {
+    "creditCard": ["billingAddress"]
+  }
+}

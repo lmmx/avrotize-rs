@@ -1,0 +1,67 @@
+---
+source: tests/cli.rs
+expression: diff
+---
+ {
+
+   "type": "record",
+
+   "name": "document",
+
+   "namespace": "array_of_objects",
+
+   "fields": [
+
+     {
+
+       "name": "items",
+
+       "type": {
+
+         "type": "array",
+
+         "items": {
+
++          "type": "record",
+
+           "name": "items",
+
+-          "type": "record",
+
+           "namespace": "array_of_objects.document_types",
+
+           "fields": [
+
+             {
+
+               "name": "id",
+
+               "type": "int"
+
+             },
+
+             {
+
+               "name": "label",
+
+               "type": [
+
+                 "null",
+
+                 "string"
+
+               ]
+
+             }
+
+           ]
+
+         }
+
+       }
+
+     }
+
+   ]
+
+ }

@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unique Items Array",
+  "type": "array",
+  "items": { "type": "integer" },
+  "uniqueItems": true
+}

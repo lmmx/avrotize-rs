@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "If/Then/Else Example",
+  "type": "object",
+  "properties": {
+    "isStudent": { "type": "boolean" },
+    "discount": { "type": "number" }
+  },
+  "if": {
+    "properties": { "isStudent": { "const": true } }
+  },
+  "then": {
+    "required": ["discount"]
+  },
+  "else": {
+    "not": { "required": ["discount"] }
+  }
+}

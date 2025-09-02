@@ -1,0 +1,21 @@
+{
+    "type": "record",
+    "name": "document",
+    "namespace": "object_dependentschemas",
+    "fields": [
+        {
+            "name": "country",
+            "type": [
+                "null",
+                "string"
+            ]
+        },
+        {
+            "name": "postalCode",
+            "type": [
+                "null",
+                "string"
+            ]
+        }
+    ]
+}

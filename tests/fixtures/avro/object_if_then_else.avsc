@@ -1,0 +1,21 @@
+{
+    "type": "record",
+    "name": "document",
+    "namespace": "object_if_then_else",
+    "fields": [
+        {
+            "name": "isStudent",
+            "type": [
+                "null",
+                "boolean"
+            ]
+        },
+        {
+            "name": "discount",
+            "type": [
+                "null",
+                "float"
+            ]
+        }
+    ]
+}

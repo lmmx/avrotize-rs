@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Remote Ref Example",
+  "type": "object",
+  "properties": {
+    "address": {
+      "$ref": "https://json-schema.org/draft/2020-12/examples/address.schema.json"
+    }
+  }
+}
