@@ -69,7 +69,7 @@ fn run_fixture(schema_path: &str, stem: &str) {
 // #[case("object_pattern_properties")]
 #[case("object_with_remote_ref")]
 // #[case("recursive_ref")]
-// #[case("string_format_email")]
+#[case("string_format_email")]
 // #[case("string_maxlength")]
 // #[case("string_minlength")]
 fn cli_fixtures(#[case] stem: &str) {
