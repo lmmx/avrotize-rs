@@ -1,5 +1,6 @@
 import ".just/commit.just"
 import ".just/hooks.just"
+import ".just/release.just"
 
 test:
     cargo nextest run -F cli
