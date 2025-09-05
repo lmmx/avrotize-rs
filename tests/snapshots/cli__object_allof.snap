@@ -1,0 +1,25 @@
+---
+source: tests/cli.rs
+expression: json
+---
+{
+  "type": "record",
+  "name": "document",
+  "namespace": "object_allof",
+  "fields": [
+    {
+      "name": "a",
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    {
+      "name": "b",
+      "type": [
+        "null",
+        "int"
+      ]
+    }
+  ]
+}
