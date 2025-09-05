@@ -18,7 +18,7 @@ Supported features include:
 * ✅ Maps (`additionalProperties`)
 * ✅ Composition (`oneOf`, `anyOf`, `allOf`)
 
----
+- For unsupported features see [roadmap](https://github.com/lmmx/avrotize-rs/issues/8)
 
 ## 🚀 Usage
 
