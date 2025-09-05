@@ -1,3 +1,8 @@
+//! Conversion from JSON Schema to Avro schema.
+//!
+//! Provides the main entry points [`jsons_to_avro`] and
+//! [`convert_jsons_to_avro`], which can be used programmatically
+//! or through the CLI.
 pub mod analysis;
 pub mod composition;
 pub mod conversion;
