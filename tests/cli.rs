@@ -49,7 +49,7 @@ fn run_fixture(schema_path: &str, stem: &str) {
 //#[case("object_with_oneof_anyof")]
 // New fixtures:
 #[case("array_contains")]
-// #[case("array_maxitems")]
+#[case("array_maxitems")]
 #[case("array_uniqueitems")]
 // #[case("array_with_additional_items")]
 #[case("boolean_false_schema")]
@@ -134,6 +134,7 @@ fn diff_fixture(stem: &str) -> Option<String> {
 
 #[rstest]
 #[case("array_contains")]
+#[case("array_maxitems")]
 #[case("array_of_objects")]
 #[case("array_uniqueitems")]
 #[case("basic_string_schema")]
