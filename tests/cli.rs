@@ -70,8 +70,8 @@ fn run_fixture(schema_path: &str, stem: &str) {
 #[case("object_with_remote_ref")]
 // #[case("recursive_ref")]
 #[case("string_format_email")]
-// #[case("string_maxlength")]
-// #[case("string_minlength")]
+#[case("string_maxlength")]
+#[case("string_minlength")]
 fn cli_fixtures(#[case] stem: &str) {
     let schema_path = format!("tests/fixtures/jsonschema/{stem}.json");
     run_fixture(&schema_path, stem);
@@ -152,6 +152,8 @@ fn diff_fixture(stem: &str) -> Option<String> {
 #[case("object_with_explicit_nullable_type")]
 #[case("object_with_optional")]
 #[case("string_format_email")]
+#[case("string_maxlength")]
+#[case("string_minlength")]
 fn diff_snapshots(#[case] stem: &str) {
     if let Some(diff) = diff_fixture(stem) {
         assert_snapshot!(format!("{stem}.diff"), diff);
