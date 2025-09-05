@@ -45,7 +45,7 @@ fn run_fixture(schema_path: &str, stem: &str) {
 #[case("object_with_enum_array")]
 #[case("object_with_explicit_nullable_type")]
 #[case("object_with_map_via_additional_props")]
-//#[case("object_with_oneof_anyof")]
+#[case("object_with_oneof")]
 // New fixtures:
 #[case("array_contains")]
 #[case("array_maxitems")]

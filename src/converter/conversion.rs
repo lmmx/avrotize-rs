@@ -512,7 +512,35 @@ mod innermod {
             }
 
             // Handle compositions
-            if obj.contains_key("allOf") || obj.contains_key("oneOf") || obj.contains_key("anyOf") {
+            if let Some(subs) = obj
+                .get("oneOf")
+                .and_then(|v| v.as_array())
+                .or_else(|| obj.get("anyOf").and_then(|v| v.as_array()))
+            {
+                let mut union_types = Vec::new();
+                for sub in subs {
+                    let avro_ty = json_type_to_avro_type(
+                        sub,
+                        record_name,
+                        field_name,
+                        namespace,
+                        utility_namespace,
+                        dependencies,
+                        json_schema,
+                        base_uri,
+                        avro_schema,
+                        record_stack,
+                        recursion_depth + 1,
+                    );
+                    match avro_ty {
+                        Value::Array(mut arr) => union_types.append(&mut arr),
+                        other => union_types.push(other),
+                    }
+                }
+                return Value::Array(union_types);
+            }
+
+            if obj.contains_key("allOf") {
                 let merged = merge_json_schemas(&[json_type.clone()], false);
                 return json_type_to_avro_type(
                     &merged,
