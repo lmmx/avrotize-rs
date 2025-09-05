@@ -9,7 +9,7 @@ homepage = "https://github.com/lmmx/avrotize-rs"
 documentation = "https://docs.rs/avrotize"
 readme = "README.md"
 keywords = ["avro", "jsonschema", "converter", "serde", "schema"]
-categories = ["data-formats", "encoding", "command-line-utilities"]
+categories = ["encoding", "command-line-utilities"]
 
 [features]
 default = []
