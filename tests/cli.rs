@@ -151,6 +151,7 @@ fn diff_fixture(stem: &str) -> Option<String> {
 #[case("object_with_enum_array")]
 #[case("object_with_explicit_nullable_type")]
 #[case("object_with_optional")]
+#[case("string_format_email")]
 fn diff_snapshots(#[case] stem: &str) {
     if let Some(diff) = diff_fixture(stem) {
         assert_snapshot!(format!("{stem}.diff"), diff);

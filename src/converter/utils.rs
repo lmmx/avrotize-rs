@@ -1,6 +1,5 @@
 use serde_json::Value;
 
-use std::path::Path;
 use url::Url;
 
 use crate::common::names::avro_namespace;

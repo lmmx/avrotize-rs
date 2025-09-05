@@ -32,6 +32,29 @@ struct Cli {
 
 #[cfg(feature = "cli")]
 fn main() {
+    #[cfg(feature = "trace")]
+    {
+        use crustrace_mermaid::{GroupingMode, MermaidLayer};
+        use tracing_subscriber::filter::LevelFilter;
+        use tracing_subscriber::prelude::*;
+
+        let mmd_layer = MermaidLayer::new()
+            .with_mode(GroupingMode::MergeByName)
+            .with_params_mode(crustrace_mermaid::ParamRenderMode::SingleNodeGrouped);
+
+        tracing_subscriber::registry()
+            .with(
+                tracing_subscriber::fmt::layer()
+                    .with_span_events(
+                        tracing_subscriber::fmt::format::FmtSpan::ENTER
+                            | tracing_subscriber::fmt::format::FmtSpan::EXIT,
+                    )
+                    .with_filter(LevelFilter::INFO),
+            )
+            .with(mmd_layer)
+            .init();
+    }
+
     let cli = Cli::parse();
 
     if let Err(e) = jsonschema2avro::converter::convert_jsons_to_avro(

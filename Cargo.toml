@@ -6,6 +6,7 @@ edition = "2021"
 [features]
 default = []
 cli = ["clap"]
+trace = ["crustrace", "crustrace-mermaid", "tracing", "tracing-subscriber"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
@@ -17,6 +18,10 @@ xxhash-rust = { version = "0.8.15", features = ["xxh64"] }
 
 # Optional dependencies
 clap = { version = "4", features = ["derive"], optional = true }
+crustrace = { version = "0.1.9", features = ["debug"], optional = true }
+crustrace-mermaid = { version = "0.1.6", optional = true }
+tracing = { version = "0.1.41", optional = true }
+tracing-subscriber = { version = "0.3.20", optional = true }
 
 [dev-dependencies]
 assert_cmd = "2"
@@ -25,3 +30,8 @@ predicates = "3"
 insta = { version = "1", features = ["json"] }
 rstest = "0.26"
 similar = { version = "2.7.0", features = ["inline"] }
+
+[patch.crates-io]
+crustrace = { path = "/home/louis/dev/crustrace/crustrace" }
+crustrace-core = { path = "/home/louis/dev/crustrace/crustrace-core" }
+crustrace-mermaid = { path = "/home/louis/dev/crustrace/crustrace-mermaid" }
