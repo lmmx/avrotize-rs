@@ -50,7 +50,7 @@ pub fn register_type(avro_schema: &mut Vec<Value>, avro_type: Value) -> bool {
 /// Perform a second pass to resolve "unmerged_types" fields.
 ///
 /// This reconciles placeholder union/anyOf types into merged Avro forms.
-pub fn postprocess_schema(avro_schema: &mut Vec<Value>, types_with_unmerged: Vec<Value>) {
+pub fn postprocess_schema(avro_schema: &mut [Value], types_with_unmerged: Vec<Value>) {
     for ref_type in types_with_unmerged {
         let name = ref_type.get("name").and_then(|n| n.as_str()).unwrap_or("");
         let namespace = ref_type
@@ -65,7 +65,7 @@ pub fn postprocess_schema(avro_schema: &mut Vec<Value>, types_with_unmerged: Vec
                 t.get("name").and_then(|n| n.as_str()) == Some(name)
                     && t.get("namespace").and_then(|n| n.as_str()) == Some(namespace)
             },
-            &Value::Array(avro_schema.clone()),
+            &Value::Array(avro_schema.to_vec()),
             &mut recursion_stack,
         );
 
@@ -88,7 +88,7 @@ pub fn postprocess_schema(avro_schema: &mut Vec<Value>, types_with_unmerged: Vec
                 let mut mergeable = vec![base];
                 mergeable.extend(unmerged);
 
-                let merged = merge_avro_schemas(&mergeable, &mut [], Some(name), &mut deps);
+                let merged = merge_avro_schemas(&mergeable, &[], Some(name), &mut deps);
 
                 let _recursion_stack: Vec<*const Value> = Vec::new();
                 set_schema_node(
@@ -97,7 +97,7 @@ pub fn postprocess_schema(avro_schema: &mut Vec<Value>, types_with_unmerged: Vec
                             && t.get("namespace").and_then(|n| n.as_str()) == Some(namespace)
                     },
                     &merged,
-                    &mut Value::Array(avro_schema.clone()),
+                    &mut Value::Array(avro_schema.to_vec()),
                 );
             }
         }

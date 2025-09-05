@@ -1,3 +1,4 @@
+#![cfg_attr(feature = "trace", allow(clippy::too_many_arguments))] // crustrace::omni expands fn signatures
 //! # avrotize
 //!
 //! Convert [JSON Schema](https://json-schema.org/) documents into

@@ -241,7 +241,7 @@ pub fn sort_messages_by_dependencies(avro_schema: &mut Vec<Value>) -> Vec<Value>
 
 /// Helper: swap dependency type inside a field.
 fn swap_dependency_type(
-    avro_schema: &mut Vec<Value>,
+    _avro_schema: &mut Vec<Value>,
     field: &mut Value,
     dependency: &str,
     dependency_type: &Value,
@@ -255,12 +255,12 @@ fn swap_dependency_type(
                     if item.as_str() == Some(dependency) {
                         *item = dependency_type.clone();
                     } else if item.is_object() {
-                        swap_dependency_type(avro_schema, item, dependency, dependency_type);
+                        swap_dependency_type(_avro_schema, item, dependency, dependency_type);
                     }
                 }
             }
         } else if ftype.is_object() {
-            swap_dependency_type(avro_schema, ftype, dependency, dependency_type);
+            swap_dependency_type(_avro_schema, ftype, dependency, dependency_type);
         }
     }
 }
