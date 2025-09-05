@@ -220,10 +220,8 @@ mod innermod {
         let title = json_object.get("title").and_then(|t| t.as_str());
         let raw_name = if !name.is_empty() {
             name
-        } else if let Some(t) = title {
-            t
         } else {
-            "" // convert nulls to empty string, avro_name will turn it into "_"
+            title.unwrap_or_default() // convert nulls to empty string, avro_name will turn it into "_"
         };
         let record_name = avro_name(raw_name);
 
@@ -548,7 +546,7 @@ mod innermod {
             }
 
             if obj.contains_key("allOf") {
-                let merged = merge_json_schemas(&[json_type.clone()], false);
+                let merged = merge_json_schemas(std::slice::from_ref(json_type), false);
                 return json_type_to_avro_type(
                     &merged,
                     record_name,

@@ -71,6 +71,7 @@ pub fn fetch_content(url: &str, cache: &mut ContentCache) -> Result<String, Stri
 /// Supports:
 /// - HTTP(s) and file URLs,
 /// - JSON Pointer fragments (`#/definitions/...`).
+///
 /// Also tolerates sloppy `#definitions/...` by normalizing to `#/definitions/...`.
 pub fn resolve_reference(
     json_type: &Value,
