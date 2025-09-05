@@ -31,21 +31,19 @@ pub fn adjust_resolved_dependencies(avro_schema: &mut Value) {
                     }
                     if v.is_object() || v.is_array() {
                         return self.swap_record_dependencies_above(v, record);
-                    } else if v.is_string() {
-                        if ["type", "values", "items"].contains(&k.as_str()) {
-                            let qname = format!(
-                                "{}.{}",
-                                record
-                                    .get("namespace")
-                                    .and_then(|n| n.as_str())
-                                    .unwrap_or(""),
-                                record.get("name").unwrap().as_str().unwrap()
-                            );
-                            if v.as_str() == Some(&qname) {
-                                self.found_something = true;
-                                *v = record.clone();
-                                return Some(qname);
-                            }
+                    } else if v.is_string() && ["type", "values", "items"].contains(&k.as_str()) {
+                        let qname = format!(
+                            "{}.{}",
+                            record
+                                .get("namespace")
+                                .and_then(|n| n.as_str())
+                                .unwrap_or(""),
+                            record.get("name").unwrap().as_str().unwrap()
+                        );
+                        if v.as_str() == Some(&qname) {
+                            self.found_something = true;
+                            *v = record.clone();
+                            return Some(qname);
                         }
                     }
                 }
@@ -198,7 +196,7 @@ pub fn sort_messages_by_dependencies(avro_schema: &mut Vec<Value>) -> Vec<Value>
                         .filter_map(|x| x.as_str().map(|s| s.to_string()))
                         .collect()
                 })
-                .unwrap_or_else(|| Vec::new());
+                .unwrap_or_default();
             let remaining_deps: Vec<String> = deps
                 .into_iter()
                 .filter(|d| {

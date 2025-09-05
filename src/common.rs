@@ -12,7 +12,9 @@ pub use inline::*;
 pub use names::*;
 pub use traversal::*;
 
-/// Convert a string into a valid Avro name.
+/// Convert a string into a valid Avro name by replacing
+/// invalid characters with `_` and ensuring it starts with
+/// a letter or underscore.
 pub fn avro_name(name: &str) -> String {
     let mut val = Regex::new(r"[^a-zA-Z0-9_]")
         .unwrap()
@@ -41,7 +43,8 @@ pub fn avro_name(name: &str) -> String {
     val
 }
 
-/// Return normalized Avro name and alternate name if different.
+/// Normalize a string to a valid Avro name and return both
+/// the normalized name and the original name if they differ.
 pub fn avro_name_with_altname(name: &str) -> (String, Option<String>) {
     let normalized = avro_name(name);
     if normalized != name {
@@ -51,7 +54,8 @@ pub fn avro_name_with_altname(name: &str) -> (String, Option<String>) {
     }
 }
 
-/// Convert string to Avro namespace (allows dots).
+/// Convert a string into a valid Avro namespace, allowing dots (`.`).
+/// Invalid characters are replaced with `_`.
 pub fn avro_namespace(name: &str) -> String {
     let mut val = Regex::new(r"[^a-zA-Z0-9_\.]")
         .unwrap()

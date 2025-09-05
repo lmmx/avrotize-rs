@@ -59,10 +59,8 @@ pub fn flatten_union(type_list: &[Value], avro_schemas: &[Value]) -> Vec<Value> 
                     map_type = Some(t.clone());
                     flat_list_1.push(t.clone());
                 }
-            } else {
-                if !flat_list_1.contains(&t) {
-                    flat_list_1.push(t.clone());
-                }
+            } else if !flat_list_1.contains(&t) {
+                flat_list_1.push(t.clone());
             }
         } else if !flat_list_1.contains(&t) {
             flat_list_1.push(t.clone());

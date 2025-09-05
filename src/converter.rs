@@ -1,3 +1,8 @@
+//! Conversion from JSON Schema to Avro schema.
+//!
+//! Provides the main entry points [`jsons_to_avro`] and
+//! [`convert_jsons_to_avro`], which can be used programmatically
+//! or through the CLI.
 pub mod analysis;
 pub mod composition;
 pub mod conversion;
@@ -99,7 +104,7 @@ pub fn jsons_to_avro(
                 .collect(),
         )
     } else if !avro_schema.is_empty() {
-        if !json_schema.get("definitions").is_some() && !json_schema.get("$defs").is_some() {
+        if json_schema.get("definitions").is_none() && json_schema.get("$defs").is_none() {
             let mut recursion_stack = Vec::new();
             if let Some(root) = find_schema_node(
                 &|t: &Value| {

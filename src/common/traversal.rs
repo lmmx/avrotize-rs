@@ -12,7 +12,7 @@ where
 {
     let ptr: *const Value = avro_schema as *const Value;
 
-    if recursion_stack.iter().any(|&p| p == ptr) {
+    if recursion_stack.contains(&ptr) {
         panic!("Cyclical reference detected in schema");
     }
     if recursion_stack.len() > 50 {

@@ -30,6 +30,11 @@ struct Cli {
     split_top_level_records: bool,
 }
 
+/// Command-line entry point for `jsonschema2avro`.
+///
+/// Converts a JSON Schema file into Avro schema `.avsc` files.
+///
+/// See `jsonschema2avro --help` for options.
 #[cfg(feature = "cli")]
 fn main() {
     #[cfg(feature = "trace")]
@@ -57,7 +62,7 @@ fn main() {
 
     let cli = Cli::parse();
 
-    if let Err(e) = jsonschema2avro::converter::convert_jsons_to_avro(
+    if let Err(e) = avrotize::converter::convert_jsons_to_avro(
         &cli.input,
         &cli.output,
         cli.namespace.as_deref(),

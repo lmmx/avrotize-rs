@@ -26,20 +26,20 @@ pub fn is_empty_type(avro_type: &Value) -> bool {
                     || obj
                         .get("fields")
                         .and_then(|f| f.as_array())
-                        .map_or(true, |f| f.is_empty())
+                        .is_none_or(|f| f.is_empty())
             }
             Some("enum") => {
                 !obj.contains_key("symbols")
                     || obj
                         .get("symbols")
                         .and_then(|s| s.as_array())
-                        .map_or(true, |s| s.is_empty())
+                        .is_none_or(|s| s.is_empty())
             }
             Some("array") => {
-                !obj.contains_key("items") || obj.get("items").map_or(true, |i| is_empty_type(i))
+                !obj.contains_key("items") || obj.get("items").is_none_or(is_empty_type)
             }
             Some("map") => {
-                !obj.contains_key("values") || obj.get("values").map_or(true, |v| is_empty_type(v))
+                !obj.contains_key("values") || obj.get("values").is_none_or(is_empty_type)
             }
             _ => false,
         }

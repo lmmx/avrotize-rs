@@ -1,4 +1,4 @@
-# avrotize-rs
+# avrotize
 
 Rust port of [avrotize](https://github.com/oslabs-beta/avrotize), a tool to convert [JSON Schema](https://json-schema.org/) into [Apache Avro](https://avro.apache.org/) schemas.
 

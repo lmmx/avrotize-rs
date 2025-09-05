@@ -10,6 +10,12 @@ pub struct ContentCache {
     cache: HashMap<String, String>,
 }
 
+impl Default for ContentCache {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ContentCache {
     pub fn new() -> Self {
         Self {
