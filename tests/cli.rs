@@ -67,10 +67,10 @@ fn run_fixture(schema_path: &str, stem: &str) {
 #[case("string_format_email")]
 #[case("string_maxlength")]
 #[case("string_minlength")]
-// #[case("object_maxproperties")]
-// #[case("object_minproperties")]
+// #[case("object_maxproperties")] // not priority?
+// #[case("object_minproperties")] // not priority?
 #[case("object_pattern_properties")]
-// #[case("recursive_ref")]
+// #[case("recursive_ref")] // accesses ref at URL
 fn cli_fixtures(#[case] stem: &str) {
     let schema_path = format!("tests/fixtures/jsonschema/{stem}.json");
     run_fixture(&schema_path, stem);
