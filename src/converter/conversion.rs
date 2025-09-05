@@ -412,9 +412,16 @@ mod innermod {
             record_stack,
             &mut dependencies,
         );
+
         if !pattern_types.is_empty() {
-            avro_record["doc"] =
-                Value::String(format!("Pattern properties: {}", pattern_types.len()));
+            avro_record["fields"].as_array_mut().unwrap().push(json!({
+                "name": record_name,
+                "type": {
+                    "type": "map",
+                    "values": pattern_types,
+                    "name": record_name
+                }
+            }));
         }
 
         if let Some(additional) = handle_additional_properties(
