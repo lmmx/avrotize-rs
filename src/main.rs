@@ -57,7 +57,7 @@ fn main() {
 
     let cli = Cli::parse();
 
-    if let Err(e) = jsonschema2avro::converter::convert_jsons_to_avro(
+    if let Err(e) = avrotize::converter::convert_jsons_to_avro(
         &cli.input,
         &cli.output,
         cli.namespace.as_deref(),

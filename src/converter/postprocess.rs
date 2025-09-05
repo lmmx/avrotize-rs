@@ -40,11 +40,9 @@ pub fn register_type(avro_schema: &mut Vec<Value>, avro_type: Value) -> bool {
             && t.get("namespace").and_then(|n| n.as_str()) == Some(namespace)
     });
 
-    if !exists {
-        if !avro_type.is_null() && is_standalone_avro_type(&avro_type) {
-            avro_schema.push(avro_type);
-            return true;
-        }
+    if !exists && !avro_type.is_null() && is_standalone_avro_type(&avro_type) {
+        avro_schema.push(avro_type);
+        return true;
     }
     exists
 }
@@ -90,7 +88,7 @@ pub fn postprocess_schema(avro_schema: &mut Vec<Value>, types_with_unmerged: Vec
                 let mut mergeable = vec![base];
                 mergeable.extend(unmerged);
 
-                let merged = merge_avro_schemas(&mergeable, &mut vec![], Some(name), &mut deps);
+                let merged = merge_avro_schemas(&mergeable, &mut [], Some(name), &mut deps);
 
                 let _recursion_stack: Vec<*const Value> = Vec::new();
                 set_schema_node(

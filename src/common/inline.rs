@@ -254,7 +254,7 @@ pub fn strip_first_doc(schema: &mut Value) -> bool {
 pub fn strip_alternate_type(avro_schema: &mut Vec<Value>) {
     if let Some(_original) = avro_schema
         .iter()
-        .find(|t| t.is_object() && !t.get("alternateof").is_some())
+        .find(|t| t.is_object() && t.get("alternateof").is_none())
     {
         if let Some(alternate) = avro_schema
             .iter()

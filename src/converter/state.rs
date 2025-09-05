@@ -12,6 +12,12 @@ pub struct JsonToAvroConverter {
     pub root_class_name: String,
 }
 
+impl Default for JsonToAvroConverter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl JsonToAvroConverter {
     /// Create a new converter with default settings.
     pub fn new() -> Self {

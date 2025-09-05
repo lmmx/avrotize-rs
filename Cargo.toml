@@ -1,12 +1,25 @@
 [package]
-name = "jsonschema2avro"
+name = "avrotize"
 version = "0.1.0"
 edition = "2021"
+description = "Convert JSON Schema to Avro with Rust"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/lmmx/avrotize-rs"
+homepage = "https://github.com/lmmx/avrotize-rs"
+documentation = "https://docs.rs/avrotize"
+readme = "README.md"
+keywords = ["avro", "jsonschema", "converter", "serde", "schema"]
+categories = ["data-formats", "encoding", "command-line-utilities"]
 
 [features]
 default = []
 cli = ["clap"]
 trace = ["crustrace", "crustrace-mermaid", "tracing", "tracing-subscriber"]
+
+[[bin]]
+name = "jsonschema2avro"
+path = "src/main.rs"
+required-features = ["cli"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
@@ -31,7 +44,7 @@ insta = { version = "1", features = ["json"] }
 rstest = "0.26"
 similar = { version = "2.7.0", features = ["inline"] }
 
-[patch.crates-io]
-crustrace = { path = "/home/louis/dev/crustrace/crustrace" }
-crustrace-core = { path = "/home/louis/dev/crustrace/crustrace-core" }
-crustrace-mermaid = { path = "/home/louis/dev/crustrace/crustrace-mermaid" }
+# [patch.crates-io]
+# crustrace = { path = "/home/louis/dev/crustrace/crustrace" }
+# crustrace-core = { path = "/home/louis/dev/crustrace/crustrace-core" }
+# crustrace-mermaid = { path = "/home/louis/dev/crustrace/crustrace-mermaid" }

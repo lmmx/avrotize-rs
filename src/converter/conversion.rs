@@ -108,7 +108,7 @@ mod innermod {
         avro_schema: &mut Vec<Value>,
         record_stack: &mut Vec<String>,
     ) -> Value {
-        if json_object.as_object().map_or(false, |obj| obj.is_empty()) {
+        if json_object.as_object().is_some_and(|obj| obj.is_empty()) {
             return Value::Array(vec![]);
         }
         let mut dependencies: Vec<String> = Vec::new();
@@ -208,7 +208,7 @@ mod innermod {
             if let Some(enum_vals) = json_object.get("enum").and_then(|v| v.as_array()) {
                 let symbols: Vec<String> = enum_vals
                     .iter()
-                    .filter_map(|v| v.as_str().map(|s| avro_name(s)))
+                    .filter_map(|v| v.as_str().map(avro_name))
                     .collect();
                 let mut avro_enum = create_enum_type(&pascal(name), namespace, &symbols);
                 merge_description_into_doc(json_object, &mut avro_enum);
@@ -568,7 +568,7 @@ mod innermod {
             if let Some(enum_vals) = obj.get("enum").and_then(|v| v.as_array()) {
                 let symbols: Vec<String> = enum_vals
                     .iter()
-                    .filter_map(|v| v.as_str().map(|s| avro_name(s)))
+                    .filter_map(|v| v.as_str().map(avro_name))
                     .collect();
                 if !symbols.is_empty() {
                     return create_enum_type(

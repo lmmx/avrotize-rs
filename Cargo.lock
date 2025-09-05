@@ -105,6 +105,29 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
 
 [[package]]
+name = "avrotize"
+version = "0.1.0"
+dependencies = [
+ "assert_cmd",
+ "clap",
+ "crustrace",
+ "crustrace-mermaid",
+ "insta",
+ "predicates",
+ "regex",
+ "reqwest",
+ "rstest",
+ "serde",
+ "serde_json",
+ "similar",
+ "tempfile",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+ "xxhash-rust",
+]
+
+[[package]]
 name = "backtrace"
 version = "0.3.75"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -246,6 +269,8 @@ checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 [[package]]
 name = "crustrace"
 version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5378875df48dc73e50ed3cdc3939da0be8acf9dcc6346b9a072aa3905cd20bf4"
 dependencies = [
  "crustrace-core",
  "proc-macro2",
@@ -254,6 +279,8 @@ dependencies = [
 [[package]]
 name = "crustrace-core"
 version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a89b4f93de8b471ee38adc427f8d5921ff80b1b4076af48cdb636839e5ee99c0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -263,6 +290,8 @@ dependencies = [
 [[package]]
 name = "crustrace-mermaid"
 version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "859b6f2ba1b471ef03ddc4a71bce1db9dd21339619a33a789cce938a84bb412f"
 dependencies = [
  "tracing",
  "tracing-subscriber",
@@ -797,29 +826,6 @@ checksum = "1cfaf33c695fc6e08064efbc1f72ec937429614f25eef83af942d0e227c3a28f"
 dependencies = [
  "once_cell",
  "wasm-bindgen",
-]
-
-[[package]]
-name = "jsonschema2avro"
-version = "0.1.0"
-dependencies = [
- "assert_cmd",
- "clap",
- "crustrace",
- "crustrace-mermaid",
- "insta",
- "predicates",
- "regex",
- "reqwest",
- "rstest",
- "serde",
- "serde_json",
- "similar",
- "tempfile",
- "tracing",
- "tracing-subscriber",
- "url",
- "xxhash-rust",
 ]
 
 [[package]]
