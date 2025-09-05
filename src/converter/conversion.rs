@@ -5,7 +5,8 @@ mod innermod {
     use crate::converter::analysis::{has_composition_keywords, has_enum_keyword, is_array_object};
     use crate::converter::merging::{merge_avro_schemas, merge_json_schemas};
     use crate::converter::structs::{
-        create_array_type, create_avro_record, create_enum_type, create_wrapper_record,
+        create_array_type, create_avro_record, create_enum_type, create_map_type,
+        create_wrapper_record,
     };
     use crate::converter::types::json_schema_primitive_to_avro_type;
     use crate::converter::utils::{merge_dependencies_into_parent, merge_description_into_doc};
@@ -575,6 +576,33 @@ mod innermod {
 
             // Handle objects
             if json_object_type == Some(Value::String("object".into())) {
+                // Special-case: plain object with only additionalProperties → treat as a map
+                if obj.get("properties").is_none() {
+                    if let Some(additional) = obj.get("additionalProperties") {
+                        if additional.is_boolean() && additional.as_bool().unwrap() {
+                            // any-type map
+                            return create_map_type(Value::Array(generic_type()), Some(field_name));
+                        }
+                        if additional.is_object() {
+                            let values_type = json_type_to_avro_type(
+                                additional,
+                                record_name,
+                                &(field_name.to_string() + "_values"),
+                                namespace,
+                                utility_namespace,
+                                &mut Vec::new(),
+                                json_schema,
+                                base_uri,
+                                avro_schema,
+                                record_stack,
+                                recursion_depth + 1,
+                            );
+                            return create_map_type(values_type, Some(field_name));
+                        }
+                    }
+                }
+
+                // Default: full object with properties, patternProperties, etc.
                 return json_schema_object_to_avro_record(
                     &local_name,
                     json_type,
