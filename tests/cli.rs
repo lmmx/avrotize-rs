@@ -43,15 +43,15 @@ fn run_fixture(schema_path: &str, stem: &str) {
 #[case("object_with_defs")]
 #[case("object_with_const_field")]
 #[case("object_with_default_value")]
-#[case("object_with_explicit_nullable_type")]
 #[case("object_with_enum_array")]
-//#[case("object_with_map_via_additional_props")]
+#[case("object_with_explicit_nullable_type")]
+#[case("object_with_map_via_additional_props")]
 //#[case("object_with_oneof_anyof")]
 // New fixtures:
 #[case("array_contains")]
-// #[case("array_maxitems")]
+#[case("array_maxitems")]
 #[case("array_uniqueitems")]
-// #[case("array_with_additional_items")]
+#[case("array_with_additional_items")]
 #[case("boolean_false_schema")]
 #[case("boolean_true_schema")]
 #[case("empty_schema")]
@@ -69,9 +69,9 @@ fn run_fixture(schema_path: &str, stem: &str) {
 // #[case("object_pattern_properties")]
 #[case("object_with_remote_ref")]
 // #[case("recursive_ref")]
-// #[case("string_format_email")]
-// #[case("string_maxlength")]
-// #[case("string_minlength")]
+#[case("string_format_email")]
+#[case("string_maxlength")]
+#[case("string_minlength")]
 fn cli_fixtures(#[case] stem: &str) {
     let schema_path = format!("tests/fixtures/jsonschema/{stem}.json");
     run_fixture(&schema_path, stem);
@@ -134,8 +134,10 @@ fn diff_fixture(stem: &str) -> Option<String> {
 
 #[rstest]
 #[case("array_contains")]
+#[case("array_maxitems")]
 #[case("array_of_objects")]
 #[case("array_uniqueitems")]
+#[case("array_with_additional_items")]
 #[case("basic_string_schema")]
 #[case("basic_string_schema_with_title")]
 #[case("empty_schema")]
@@ -150,7 +152,11 @@ fn diff_fixture(stem: &str) -> Option<String> {
 #[case("object_with_defs")]
 #[case("object_with_enum_array")]
 #[case("object_with_explicit_nullable_type")]
+#[case("object_with_map_via_additional_props")]
 #[case("object_with_optional")]
+#[case("string_format_email")]
+#[case("string_maxlength")]
+#[case("string_minlength")]
 fn diff_snapshots(#[case] stem: &str) {
     if let Some(diff) = diff_fixture(stem) {
         assert_snapshot!(format!("{stem}.diff"), diff);

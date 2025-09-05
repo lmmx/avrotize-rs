@@ -66,11 +66,20 @@ pub fn create_array_type(items: Value) -> Value {
 }
 
 /// Create an Avro map type.
-pub fn create_map_type(values: Value) -> Value {
-    json!({
-        "type": "map",
-        "values": values
-    })
+pub fn create_map_type(values: Value, name: Option<&str>) -> Value {
+    // Construct fields in a fixed order
+    if let Some(n) = name {
+        json!({
+            "name": n,
+            "type": "map",
+            "values": values
+        })
+    } else {
+        json!({
+            "type": "map",
+            "values": values
+        })
+    }
 }
 
 /// Wrap a type in a union with `null`.

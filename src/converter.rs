@@ -14,7 +14,7 @@ pub mod utils;
 
 pub use state::JsonToAvroConverter;
 
-use definitions::{process_definition, process_definition_list};
+use definitions::process_definition;
 use postprocess::postprocess_schema;
 use utils::id_to_avro_namespace;
 
@@ -26,6 +26,7 @@ use url::Url;
 use crate::common::traversal::find_schema_node;
 use crate::dependency_resolver::{inline_dependencies_of, sort_messages_by_dependencies};
 
+#[cfg_attr(feature = "trace", crustrace::instrument)]
 /// Convert an in-memory JSON Schema into an Avro Schema.
 ///
 /// This handles definitions, root objects, and dependency resolution.
@@ -40,7 +41,7 @@ pub fn jsons_to_avro(
     let mut avro_schema: Vec<Value> = Vec::new();
     let mut record_stack: Vec<String> = Vec::new();
 
-    let url = Url::parse(base_uri).unwrap_or_else(|_| Url::parse("file:///tmp").unwrap());
+    let _url = Url::parse(base_uri).unwrap_or_else(|_| Url::parse("file:///tmp").unwrap());
     let mut root_name = "document".to_string();
     let mut root_namespace = namespace.to_string();
 
@@ -119,6 +120,7 @@ pub fn jsons_to_avro(
     }
 }
 
+#[cfg_attr(feature = "trace", crustrace::instrument)]
 /// Convert JSON Schema file into Avro Schema file(s).
 ///
 /// This reads a JSON Schema file (from disk or HTTP), converts it to Avro,
@@ -176,7 +178,6 @@ pub fn convert_jsons_to_avro(
     } else {
         format!("{ns}.utility")
     };
-    // dbg!(&ns, &utility_ns);
 
     let avro_schema = jsons_to_avro(
         &json_schema,

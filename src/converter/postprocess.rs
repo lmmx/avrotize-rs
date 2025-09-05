@@ -1,7 +1,7 @@
-use serde_json::{json, Value};
+use serde_json::Value;
 
 use crate::common::traversal::{find_schema_node, set_schema_node};
-use crate::converter::analysis::{is_avro_complex_type, is_standalone_avro_type};
+use crate::converter::analysis::is_standalone_avro_type;
 use crate::converter::merging::merge_avro_schemas;
 use crate::converter::utils::lift_dependencies_from_type;
 
@@ -92,7 +92,7 @@ pub fn postprocess_schema(avro_schema: &mut Vec<Value>, types_with_unmerged: Vec
 
                 let merged = merge_avro_schemas(&mergeable, &mut vec![], Some(name), &mut deps);
 
-                let recursion_stack: Vec<*const Value> = Vec::new();
+                let _recursion_stack: Vec<*const Value> = Vec::new();
                 set_schema_node(
                     &|t: &Value| {
                         t.get("name").and_then(|n| n.as_str()) == Some(name)

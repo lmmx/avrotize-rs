@@ -1,0 +1,45 @@
+---
+source: tests/cli.rs
+expression: diff
+---
+ {
+
+   "type": "record",
+
+   "name": "document_wrapper",
+
+   "namespace": "array_with_additional_items.utility",
+
+   "fields": [
+
+     {
+
+       "name": "items",
+
+       "type": {
+
+-        "name": "Array_with_Additional_Items_Restriction",
+
+         "type": "array",
+
+         "items": [
+
+           {
+
+             "type": "string"
+
+           }
+
+-        ]
+
++        ],
+
++        "name": "Array_with_Additional_Items_Restriction"
+
+       }
+
+     }
+
+   ]
+
+ }
