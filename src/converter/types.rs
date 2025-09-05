@@ -93,7 +93,7 @@ pub fn json_schema_primitive_to_avro_type(
             "uuid" => {
                 avro_type = json!({"type": "string", "logicalType": "uuid"});
             }
-            other => {
+            _other => {
                 return Value::Array(vec![]); // bail for unsupported format
             }
         }
