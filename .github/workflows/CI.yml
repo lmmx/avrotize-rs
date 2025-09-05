@@ -72,6 +72,7 @@ jobs:
       - uses: taiki-e/upload-rust-binary-action@v1
         with:
           bin: ${{ env.BINARY_NAME }}
+          features: cli
           archive: ${{ env.BINARY_NAME }}-${{ matrix.target }}
           target: ${{ matrix.target }}
           tar: all
