@@ -412,9 +412,16 @@ mod innermod {
             record_stack,
             &mut dependencies,
         );
+
         if !pattern_types.is_empty() {
-            avro_record["doc"] =
-                Value::String(format!("Pattern properties: {}", pattern_types.len()));
+            avro_record["fields"].as_array_mut().unwrap().push(json!({
+                "name": record_name,
+                "type": {
+                    "type": "map",
+                    "values": pattern_types,
+                    "name": record_name
+                }
+            }));
         }
 
         if let Some(additional) = handle_additional_properties(
@@ -512,7 +519,35 @@ mod innermod {
             }
 
             // Handle compositions
-            if obj.contains_key("allOf") || obj.contains_key("oneOf") || obj.contains_key("anyOf") {
+            if let Some(subs) = obj
+                .get("oneOf")
+                .and_then(|v| v.as_array())
+                .or_else(|| obj.get("anyOf").and_then(|v| v.as_array()))
+            {
+                let mut union_types = Vec::new();
+                for sub in subs {
+                    let avro_ty = json_type_to_avro_type(
+                        sub,
+                        record_name,
+                        field_name,
+                        namespace,
+                        utility_namespace,
+                        dependencies,
+                        json_schema,
+                        base_uri,
+                        avro_schema,
+                        record_stack,
+                        recursion_depth + 1,
+                    );
+                    match avro_ty {
+                        Value::Array(mut arr) => union_types.append(&mut arr),
+                        other => union_types.push(other),
+                    }
+                }
+                return Value::Array(union_types);
+            }
+
+            if obj.contains_key("allOf") {
                 let merged = merge_json_schemas(&[json_type.clone()], false);
                 return json_type_to_avro_type(
                     &merged,

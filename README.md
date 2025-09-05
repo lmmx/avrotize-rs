@@ -16,7 +16,7 @@ Supported features include:
 * ✅ Required vs optional → nullable unions in Avro
 * ✅ Descriptions → Avro `doc` fields
 * ✅ Maps (`additionalProperties`)
-* ⬜ Composition (`oneOf`, `anyOf`, `allOf`) (partial support)
+* ✅ Composition (`oneOf`, `anyOf`, `allOf`)
 
 ---
 
@@ -37,10 +37,8 @@ For each fixture, an Avro schema is generated into `tests/fixtures/avro/` and co
 
 ## 📋 Roadmap
 
-* [ ] Full support for `oneOf`, `anyOf`, `allOf`
 * [ ] More robust external `$ref` resolution
 * [ ] Additional Avro features (fixed, logical types)
-* [ ] Auto-discovery of fixture tests
 
 ## Acknowledgements
 

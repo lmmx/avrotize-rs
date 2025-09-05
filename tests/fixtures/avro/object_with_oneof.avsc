@@ -1,7 +1,7 @@
 {
     "type": "record",
     "name": "document",
-    "namespace": "object_with_oneof_anyof",
+    "namespace": "object_with_oneof",
     "fields": [
         {
             "name": "value",

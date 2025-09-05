@@ -53,6 +53,33 @@ mod innermod {
         schema: &Value,
         is_root: bool,
     ) -> Option<(String, String)> {
+        if let Some(all_of) = schema.get("allOf").and_then(|a| a.as_array()) {
+            // base = schema without "allOf"
+            let mut base = schema.clone();
+            if let Some(obj) = base.as_object_mut() {
+                obj.remove("allOf");
+            }
+
+            let mut type_list = vec![base];
+            type_list.extend(all_of.iter().cloned());
+
+            // merge_json_schemas already removes conflicts / unions
+            let merged = crate::converter::merging::merge_json_schemas(&type_list, false);
+
+            // Now merged has no "allOf" — safe to recurse once
+            return process_definition(
+                json_schema,
+                namespace,
+                utility_namespace,
+                base_uri,
+                avro_schema,
+                record_stack,
+                schema_name,
+                &merged,
+                is_root,
+            );
+        }
+
         let ty = schema.get("type").and_then(|t| t.as_str());
 
         let avro_schema_item_list = match ty {
