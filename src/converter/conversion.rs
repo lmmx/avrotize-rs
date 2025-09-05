@@ -547,19 +547,25 @@ mod innermod {
             if json_object_type == Some(Value::String("array".into())) {
                 if let Some(items) = obj.get("items") {
                     let mut deps = vec![];
-                    let item_type = json_type_to_avro_type(
-                        items,
-                        record_name,
-                        field_name,
-                        namespace,
-                        utility_namespace,
-                        &mut deps,
-                        json_schema,
-                        base_uri,
-                        avro_schema,
-                        record_stack,
-                        recursion_depth + 1,
-                    );
+                    let item_type = if items.is_array() {
+                        // tuple typing → preserve as-is
+                        items.clone()
+                    } else {
+                        // homogeneous array → recurse
+                        json_type_to_avro_type(
+                            items,
+                            record_name,
+                            field_name,
+                            namespace,
+                            utility_namespace,
+                            &mut deps,
+                            json_schema,
+                            base_uri,
+                            avro_schema,
+                            record_stack,
+                            recursion_depth + 1,
+                        )
+                    };
                     dependencies.extend(deps);
                     return create_array_type(item_type);
                 } else {
