@@ -1,0 +1,29 @@
+{
+    "type": "record",
+    "name": "document",
+    "namespace": "demo",
+    "fields": [
+        {
+            "name": "document",
+            "type": {
+                "type": "map",
+                "values": {
+                    "name": "document_extensions",
+                    "type": "record",
+                    "namespace": "demo",
+                    "fields": [
+                        {
+                            "name": "language",
+                            "type": "string"
+                        },
+                        {
+                            "name": "value",
+                            "type": "string"
+                        }
+                    ]
+                },
+                "name": "document"
+            }
+        }
+    ]
+}
