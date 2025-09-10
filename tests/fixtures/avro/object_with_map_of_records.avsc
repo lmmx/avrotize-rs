@@ -1,7 +1,7 @@
 {
     "type": "record",
     "name": "document",
-    "namespace": "demo",
+    "namespace": "object_with_map_of_records",
     "fields": [
         {
             "name": "document",
@@ -10,7 +10,7 @@
                 "values": {
                     "name": "document_extensions",
                     "type": "record",
-                    "namespace": "demo",
+                    "namespace": "object_with_map_of_records",
                     "fields": [
                         {
                             "name": "language",

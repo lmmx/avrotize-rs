@@ -9,7 +9,25 @@ expression: json
   "fields": [
     {
       "name": "document",
-      "type": "object_with_map_of_records.document"
+      "type": {
+        "type": "map",
+        "values": {
+          "type": "record",
+          "name": "document_extensions",
+          "namespace": "object_with_map_of_records.document_types",
+          "fields": [
+            {
+              "name": "language",
+              "type": "string"
+            },
+            {
+              "name": "value",
+              "type": "string"
+            }
+          ]
+        },
+        "name": "document"
+      }
     }
   ]
 }
