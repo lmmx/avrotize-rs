@@ -1,0 +1,33 @@
+---
+source: tests/cli.rs
+expression: json
+---
+{
+  "type": "record",
+  "name": "document",
+  "namespace": "object_with_map_of_records",
+  "fields": [
+    {
+      "name": "document",
+      "type": {
+        "type": "map",
+        "values": {
+          "type": "record",
+          "name": "document_extensions",
+          "namespace": "object_with_map_of_records",
+          "fields": [
+            {
+              "name": "language",
+              "type": "string"
+            },
+            {
+              "name": "value",
+              "type": "string"
+            }
+          ]
+        },
+        "name": "document"
+      }
+    }
+  ]
+}

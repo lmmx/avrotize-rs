@@ -74,6 +74,11 @@ mod innermod {
                 }
             } else if additional.is_object() {
                 let mut deps = Vec::new();
+
+                // Use parent namespace only: drop the current record from the stack
+                let mut parent_stack = record_stack.clone();
+                parent_stack.pop();
+
                 let avro_type = json_type_to_avro_type(
                     additional,
                     record_name,
@@ -84,7 +89,7 @@ mod innermod {
                     json_object,
                     base_uri,
                     avro_schema,
-                    record_stack,
+                    &mut parent_stack,
                     1,
                 );
                 dependencies.extend(deps);
@@ -432,6 +437,18 @@ mod innermod {
             record_stack,
             &mut dependencies,
         ) {
+            let has_fields = avro_record["fields"]
+                .as_array()
+                .map(|a| !a.is_empty())
+                .unwrap_or(false);
+
+            if !has_fields {
+                // Case: only `additionalProperties` → return the map itself.
+                record_stack.pop();
+                return additional;
+            }
+
+            // Case: properties + additionalProperties → keep record, annotate.
             avro_record["doc"] = Value::String(format!(
                 "{}; Additional properties allowed",
                 avro_record
