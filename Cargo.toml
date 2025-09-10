@@ -1,6 +1,6 @@
 [package]
 name = "avrotize"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "Convert JSON Schema to Avro with Rust"
 license = "MIT OR Apache-2.0"
