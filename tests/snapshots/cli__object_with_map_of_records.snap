@@ -14,7 +14,7 @@ expression: json
         "values": {
           "type": "record",
           "name": "document_extensions",
-          "namespace": "object_with_map_of_records.document_types",
+          "namespace": "object_with_map_of_records",
           "fields": [
             {
               "name": "language",

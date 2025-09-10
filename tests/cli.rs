@@ -92,6 +92,7 @@ fn diff_fixture(stem: &str) -> Option<String> {
 
     let fixture_raw = fs::read_to_string(fixture_path).unwrap();
     let snapshot_raw = fs::read_to_string(snap_path).unwrap();
+
     let snapshot_stripped = snapshot_raw
         .lines()
         .skip_while(|line| !line.starts_with('{') && !line.starts_with('['))
@@ -158,7 +159,7 @@ fn diff_fixture(stem: &str) -> Option<String> {
 #[case("object_with_defs")]
 #[case("object_with_enum_array")]
 #[case("object_with_explicit_nullable_type")]
-// #[case("object_with_map_of_records")]
+#[case("object_with_map_of_records")]
 #[case("object_with_map_via_additional_props")]
 #[case("object_with_oneof")]
 #[case("object_with_optional")]

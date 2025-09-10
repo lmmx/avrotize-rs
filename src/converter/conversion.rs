@@ -74,6 +74,11 @@ mod innermod {
                 }
             } else if additional.is_object() {
                 let mut deps = Vec::new();
+
+                // Use parent namespace only: drop the current record from the stack
+                let mut parent_stack = record_stack.clone();
+                parent_stack.pop();
+
                 let avro_type = json_type_to_avro_type(
                     additional,
                     record_name,
@@ -84,7 +89,7 @@ mod innermod {
                     json_object,
                     base_uri,
                     avro_schema,
-                    record_stack,
+                    &mut parent_stack,
                     1,
                 );
                 dependencies.extend(deps);
