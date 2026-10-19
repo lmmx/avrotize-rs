@@ -20,7 +20,7 @@ pub mod utils;
 pub use state::JsonToAvroConverter;
 
 use definitions::process_definition;
-use postprocess::postprocess_schema;
+use postprocess::{disambiguate_named_types, postprocess_schema, strip_bookkeeping};
 use utils::id_to_avro_namespace;
 
 use serde_json::Value;
@@ -92,11 +92,14 @@ pub fn jsons_to_avro(
         }
     }
 
+    // Give differently shaped types that share a full name distinct names
+    disambiguate_named_types(&mut avro_schema);
+
     // Postprocess unmerged types
     postprocess_schema(&mut avro_schema, Vec::new());
 
     // Inline or sort
-    if split_top_level {
+    let mut avro = if split_top_level {
         Value::Array(
             avro_schema
                 .into_iter()
@@ -116,13 +119,16 @@ pub fn jsons_to_avro(
             ) {
                 let mut root_copy = root.clone();
                 inline_dependencies_of(&mut avro_schema.clone(), &mut root_copy);
+                strip_bookkeeping(&mut root_copy);
                 return root_copy;
             }
         }
         Value::Array(sort_messages_by_dependencies(&mut avro_schema.clone()))
     } else {
         Value::Array(Vec::new())
-    }
+    };
+    strip_bookkeeping(&mut avro);
+    avro
 }
 
 #[cfg_attr(feature = "trace", crustrace::instrument)]
