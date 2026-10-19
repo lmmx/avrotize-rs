@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2](https://github.com/lmmx/avrotize-rs/compare/v0.1.1...v0.1.2) - 2026-10-19
+
+### Fixed
+
+- distinct names for differently shaped records and enums; strip bookkeeping keys ([#30](https://github.com/lmmx/avrotize-rs/pull/30))
+
+### Other
+
+- *(clippy)* lint fixes
+- compile name regexes once; drop duplicate name fns; fix unicode-perl panic ([#29](https://github.com/lmmx/avrotize-rs/pull/29))
+- *(pre-commit)* autoupdate hooks ([#25](https://github.com/lmmx/avrotize-rs/pull/25))
+- *(pre-commit)* autoupdate hooks ([#24](https://github.com/lmmx/avrotize-rs/pull/24))
+- *(pre-commit)* autoupdate hooks ([#23](https://github.com/lmmx/avrotize-rs/pull/23))
+
 ## [0.1.1](https://github.com/lmmx/avrotize-rs/compare/v0.1.0...v0.1.1) - 2025-09-10
 
 ### Added
