@@ -1,15 +1,27 @@
 use regex::Regex;
 use serde_json::Value;
+use std::sync::LazyLock;
+
+/// Characters an Avro name may not contain.
+static NOT_NAME_CHARS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[^a-zA-Z0-9_]").unwrap());
+/// Characters an Avro namespace may not contain (dots separate its parts).
+static NOT_NAMESPACE_CHARS: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"[^a-zA-Z0-9_\.]").unwrap());
+/// Words of a string that starts with a capital (`pascal`, `camel`, `snake`).
+static CAPITALISED_WORDS: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"[A-Z][a-z0-9_]*\.?").unwrap());
+/// Words of a string that starts in lower case (`pascal`, `camel`, `snake`).
+static WORDS: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"[a-z0-9]+\.?|[A-Z][a-z0-9_]*\.?").unwrap());
+/// `Name[args]` in a type string.
+static TYPING_ARGS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"([\w\.]+)\[(.+)\]").unwrap());
 
 /// Convert a raw string into a valid Avro name.
 ///
 /// Ensures the identifier starts with a letter or underscore,
 /// replaces invalid characters with `_`, and prefixes leading digits.
 pub fn avro_name(name: &str) -> String {
-    let mut val = Regex::new(r"[^a-zA-Z0-9_]")
-        .unwrap()
-        .replace_all(name, "_")
-        .to_string();
+    let mut val = NOT_NAME_CHARS.replace_all(name, "_").to_string();
     if val
         .chars()
         .next()
@@ -39,10 +51,7 @@ pub fn avro_name_with_altname(name: &str) -> (String, Option<String>) {
 /// Replaces invalid chars with `_` but preserves dots as separators.
 /// Prefixes with `_` if starting with a digit.
 pub fn avro_namespace(name: &str) -> String {
-    let mut val = Regex::new(r"[^a-zA-Z0-9_\.]")
-        .unwrap()
-        .replace_all(name, "_")
-        .to_string();
+    let mut val = NOT_NAMESPACE_CHARS.replace_all(name, "_").to_string();
     if val
         .chars()
         .next()
@@ -78,14 +87,12 @@ pub fn pascal(input: &str) -> String {
     if input.contains('_') {
         words = input.split('_').map(|w| w.to_string()).collect();
     } else if input.chars().next().unwrap().is_uppercase() {
-        let re = Regex::new(r"[A-Z][a-z0-9_]*\.?").unwrap();
-        words = re
+        words = CAPITALISED_WORDS
             .find_iter(input)
             .map(|m| m.as_str().to_string())
             .collect();
     } else {
-        let re = Regex::new(r"[a-z0-9]+\.?|[A-Z][a-z0-9_]*\.?").unwrap();
-        words = re
+        words = WORDS
             .find_iter(input)
             .map(|m| m.as_str().to_string())
             .collect();
@@ -123,14 +130,12 @@ pub fn camel(input: &str) -> String {
     if input.contains('_') {
         words = input.split('_').map(|w| w.to_string()).collect();
     } else if input.chars().next().unwrap().is_uppercase() {
-        let re = Regex::new(r"[A-Z][a-z0-9_]*\.?").unwrap();
-        words = re
+        words = CAPITALISED_WORDS
             .find_iter(input)
             .map(|m| m.as_str().to_string())
             .collect();
     } else {
-        let re = Regex::new(r"[a-z0-9]+\.?|[A-Z][a-z0-9_]*\.?").unwrap();
-        words = re
+        words = WORDS
             .find_iter(input)
             .map(|m| m.as_str().to_string())
             .collect();
@@ -165,14 +170,12 @@ pub fn snake(input: &str) -> String {
     if input.contains('_') {
         words = input.split('_').map(|w| w.to_string()).collect();
     } else if input.chars().next().unwrap().is_uppercase() {
-        let re = Regex::new(r"[A-Z][a-z0-9_]*\.?").unwrap();
-        words = re
+        words = CAPITALISED_WORDS
             .find_iter(input)
             .map(|m| m.as_str().to_string())
             .collect();
     } else {
-        let re = Regex::new(r"[a-z0-9]+\.?|[A-Z][a-z0-9_]*\.?").unwrap();
-        words = re
+        words = WORDS
             .find_iter(input)
             .map(|m| m.as_str().to_string())
             .collect();
@@ -249,8 +252,7 @@ pub fn get_longest_namespace_prefix(namespaces: &[String]) -> String {
 
 /// Parse generic arguments from a type string like `List[Map[String]]`.
 pub fn get_typing_args_from_string(type_str: &str) -> Vec<String> {
-    let re = Regex::new(r"([\w\.]+)\[(.+)\]").unwrap();
-    if let Some(caps) = re.captures(type_str) {
+    if let Some(caps) = TYPING_ARGS.captures(type_str) {
         let args_str = caps.get(2).unwrap().as_str();
         let mut args = Vec::new();
         let mut depth = 0;
