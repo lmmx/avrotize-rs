@@ -2,6 +2,7 @@
 name = "avrotize"
 version = "0.1.1"
 edition = "2021"
+rust-version = "1.82"
 description = "Convert JSON Schema to Avro with Rust"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/lmmx/avrotize-rs"
@@ -26,7 +27,10 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
 url = "2.5"
 reqwest = { version = "0.12", features = ["blocking", "json"] }
-regex = { version = "1.11.2", features = ["std"], default-features = false }
+regex = { version = "1.11.2", features = [
+  "std",
+  "unicode-perl",
+], default-features = false }
 xxhash-rust = { version = "0.8.15", features = ["xxh64"] }
 
 # Optional dependencies
