@@ -82,21 +82,20 @@ pub fn pascal(input: &str) -> String {
     }
 
     let startswith_under = input.starts_with('_');
-    let words: Vec<String>;
 
-    if input.contains('_') {
-        words = input.split('_').map(|w| w.to_string()).collect();
+    let words: Vec<String> = if input.contains('_') {
+        input.split('_').map(|w| w.to_string()).collect()
     } else if input.chars().next().unwrap().is_uppercase() {
-        words = CAPITALISED_WORDS
+        CAPITALISED_WORDS
             .find_iter(input)
             .map(|m| m.as_str().to_string())
-            .collect();
+            .collect()
     } else {
-        words = WORDS
+        WORDS
             .find_iter(input)
             .map(|m| m.as_str().to_string())
-            .collect();
-    }
+            .collect()
+    };
 
     let mut result = words
         .into_iter()
@@ -126,20 +125,19 @@ pub fn camel(input: &str) -> String {
         return input.to_string();
     }
 
-    let words: Vec<String>;
-    if input.contains('_') {
-        words = input.split('_').map(|w| w.to_string()).collect();
+    let words: Vec<String> = if input.contains('_') {
+        input.split('_').map(|w| w.to_string()).collect()
     } else if input.chars().next().unwrap().is_uppercase() {
-        words = CAPITALISED_WORDS
+        CAPITALISED_WORDS
             .find_iter(input)
             .map(|m| m.as_str().to_string())
-            .collect();
+            .collect()
     } else {
-        words = WORDS
+        WORDS
             .find_iter(input)
             .map(|m| m.as_str().to_string())
-            .collect();
-    }
+            .collect()
+    };
 
     let mut iter = words.into_iter();
     let first = iter.next().unwrap_or_default().to_lowercase();
@@ -166,20 +164,19 @@ pub fn snake(input: &str) -> String {
         return input.to_string();
     }
 
-    let words: Vec<String>;
-    if input.contains('_') {
-        words = input.split('_').map(|w| w.to_string()).collect();
+    let words: Vec<String> = if input.contains('_') {
+        input.split('_').map(|w| w.to_string()).collect()
     } else if input.chars().next().unwrap().is_uppercase() {
-        words = CAPITALISED_WORDS
+        CAPITALISED_WORDS
             .find_iter(input)
             .map(|m| m.as_str().to_string())
-            .collect();
+            .collect()
     } else {
-        words = WORDS
+        WORDS
             .find_iter(input)
             .map(|m| m.as_str().to_string())
-            .collect();
-    }
+            .collect()
+    };
 
     words
         .into_iter()
