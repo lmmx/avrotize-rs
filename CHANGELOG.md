@@ -7,15 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- compile name regexes once instead of on every call, making conversion of wide schemas 10-20x faster ([#27](https://github.com/lmmx/avrotize-rs/issues/27))
-- `get_typing_args_from_string` no longer panics when avrotize is built without regex's `unicode-perl` feature ([#27](https://github.com/lmmx/avrotize-rs/issues/27))
-
-### Other
-
-- remove the duplicate `avro_name`, `avro_name_with_altname` and `avro_namespace` from `common`; the `common::*` paths now re-export the `common::names` versions ([#27](https://github.com/lmmx/avrotize-rs/issues/27))
-
 ## [0.1.1](https://github.com/lmmx/avrotize-rs/compare/v0.1.0...v0.1.1) - 2025-09-10
 
 ### Added
