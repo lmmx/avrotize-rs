@@ -474,6 +474,20 @@ mod innermod {
         avro_record
     }
 
+    /// The Avro type of a non-string `const` value, mapped as its JSON type would be.
+    fn const_type(value: &Value) -> Option<&'static str> {
+        match value {
+            Value::Null => Some("null"),
+            Value::Bool(_) => Some("boolean"),
+            Value::Number(n) if n.is_i64() || n.is_u64() => {
+                let fits_int = n.as_i64().is_some_and(|i| i32::try_from(i).is_ok());
+                Some(if fits_int { "int" } else { "long" })
+            }
+            Value::Number(_) => Some("float"),
+            _ => None,
+        }
+    }
+
     /// Convert a JSON Schema type into an Avro type.
     pub fn json_type_to_avro_type(
         json_type: &Value,
@@ -681,6 +695,18 @@ mod innermod {
                     .iter()
                     .filter_map(|v| v.as_str().map(avro_name))
                     .collect();
+                if symbols.is_empty() {
+                    // A number, boolean or null constant can't be an enum symbol: give
+                    // the field its value's type (the field keeps the `const` itself).
+                    // An object or array constant has no exact Avro type; the generic
+                    // type can hold it.
+                    if let [scalar] = values.as_slice() {
+                        if let Some(t) = const_type(scalar) {
+                            return Value::String(t.to_string());
+                        }
+                    }
+                    return Value::Array(generic_type());
+                }
                 let mut enum_type = create_enum_type(&local_name, namespace, &symbols);
                 if let Some(desc) = obj.get("description").and_then(|d| d.as_str()) {
                     enum_type["doc"] = Value::String(desc.to_string());
