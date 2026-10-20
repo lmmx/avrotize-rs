@@ -391,3 +391,16 @@ fn a_union_pattern_type_is_not_nested_in_the_map_values() {
         json!(["null", "string", "int", "boolean"])
     );
 }
+
+#[test]
+fn additional_properties_true_holds_values_of_any_type() {
+    // Was a map of strings, so a number or an object among the extra keys didn't fit.
+    let schema = json!({"type": "object", "required": ["k"], "properties": {
+        "k": {"type": "object", "properties": {}, "additionalProperties": true}}});
+    let avro = convert(&schema);
+    assert_eq!(avro["fields"][0]["type"]["type"], "map");
+    assert_fits(
+        &avro,
+        json!({"k": {"s": "x", "n": 1, "o": {"a": true}, "l": [1, "y"]}}),
+    );
+}
