@@ -265,3 +265,48 @@ fn defs_are_used_alongside_definitions() {
     let avro = convert(&schema);
     assert_eq!(p_type(&avro), &json!("ns.A"));
 }
+
+#[test]
+fn recursive_definitions_refs_become_named_references() {
+    // A definitions entry referring to itself was expanded inline without end, which
+    // overflowed the stack and aborted the process.
+    let node = json!({"type": "object", "required": ["v"], "properties": {
+        "v": {"type": "integer"}, "next": {"$ref": "#/definitions/Node"}}});
+    let schema = json!({"type": "object", "required": ["p"],
+        "properties": {"p": {"$ref": "#/definitions/Node"}}, "definitions": {"Node": node}});
+    let avro = convert(&schema);
+    let node = &avro[0];
+    assert_eq!(node["name"], "Node");
+    assert_eq!(node["fields"][1]["type"], json!(["null", "ns.Node"]));
+    assert_fits(
+        node,
+        json!({"v": 1, "next": {"v": 2, "next": {"v": 3, "next": null}}}),
+    );
+}
+
+#[test]
+fn a_tree_and_mutually_recursive_definitions_convert() {
+    let tree = json!({"type": "object", "properties": {
+        "l": {"$ref": "#/definitions/T"}, "r": {"$ref": "#/definitions/T"}}});
+    let a = json!({"type": "object", "properties": {"b": {"$ref": "#/definitions/B"}}});
+    let b = json!({"type": "object", "properties": {"a": {"$ref": "#/definitions/A"}}});
+    let schema = json!({"type": "object", "properties": {
+            "t": {"$ref": "#/definitions/T"}, "a": {"$ref": "#/definitions/A"}},
+        "definitions": {"T": tree, "A": a, "B": b}});
+    let avro = convert(&schema);
+    let t = avro
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|x| x["name"] == "T")
+        .unwrap();
+    assert_eq!(t["fields"][0]["type"], json!(["null", "ns.T"]));
+    assert_fits(t, json!({"l": {"l": null, "r": null}, "r": null}));
+}
+
+#[test]
+fn a_ref_to_the_root_converts() {
+    // `#` is the whole schema: a reference to it inside it recursed without end too.
+    let schema = json!({"type": "object", "properties": {"p": {"$ref": "#"}}});
+    convert(&schema);
+}

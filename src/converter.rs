@@ -59,18 +59,23 @@ pub fn jsons_to_avro(
         };
         for (def_name, schema) in map {
             if schema.is_object() {
-                if let Some((ns, name)) = process_definition(
-                    json_schema,
-                    namespace,
-                    utility_namespace,
-                    base_uri,
-                    &mut avro_schema,
-                    &mut record_stack,
-                    def_name,
-                    schema,
-                    false,
-                ) {
-                    registered.insert(format!("#/{container}/{def_name}"), format!("{ns}.{name}"));
+                // A definition that refers to itself gets a reference to its own name.
+                let ref_str = format!("#/{container}/{def_name}");
+                let defined = conversion::expand_once(&ref_str, || {
+                    process_definition(
+                        json_schema,
+                        namespace,
+                        utility_namespace,
+                        base_uri,
+                        &mut avro_schema,
+                        &mut record_stack,
+                        def_name,
+                        schema,
+                        false,
+                    )
+                });
+                if let Some(Some((ns, name))) = defined {
+                    registered.insert(ref_str, format!("{ns}.{name}"));
                 }
             }
         }
@@ -158,7 +163,8 @@ pub fn jsons_to_avro(
     avro
 }
 
-/// Replace the references to `$defs` entries that conversion leaves in type positions.
+/// Replace the references to definitions that conversion leaves in type positions: every
+/// reference to a `$defs` entry, and a `definitions` entry's reference to itself.
 ///
 /// A definition registered as a named type is referred to by its full name. A
 /// definition that is not a named type (a primitive, an array, an empty object) has
@@ -173,7 +179,7 @@ fn resolve_definition_refs(
     utility_namespace: &str,
     base_uri: &str,
 ) {
-    use conversion::{is_definition_ref, json_type_to_avro_type};
+    use conversion::{is_any_definition_ref as is_definition_ref, json_type_to_avro_type};
 
     /// The `$defs` references in `value`'s type positions (not in const or default data).
     fn collect(value: &Value, refs: &mut HashSet<String>) {
@@ -206,7 +212,7 @@ fn resolve_definition_refs(
                 return Value::String(full_name.clone());
             }
             let Some(t) = self.inline.get(ref_str).cloned() else {
-                let name = ref_str.trim_start_matches("#/$defs/");
+                let name = ref_str.rsplit('/').next().unwrap_or_default();
                 return Value::String(format!("{}.{}", self.namespace, name));
             };
             if !self.visiting.insert(ref_str.to_string()) {
@@ -258,10 +264,13 @@ fn resolve_definition_refs(
         if registered.contains_key(&ref_str) || inline.contains_key(&ref_str) {
             continue;
         }
-        let name = ref_str.trim_start_matches("#/$defs/");
-        let Some(schema) = json_schema.get("$defs").and_then(|d| d.get(name)) else {
+        let Some(schema) = ref_str
+            .strip_prefix('#')
+            .and_then(|p| json_schema.pointer(p))
+        else {
             continue;
         };
+        let name = ref_str.rsplit('/').next().unwrap_or_default();
         let t = json_type_to_avro_type(
             schema,
             name,
