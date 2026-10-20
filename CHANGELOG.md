@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0](https://github.com/lmmx/avrotize-rs/compare/v0.1.2...v0.2.0) - 2026-10-20
+
+### Fixed
+
+- *(conversion)* oneOf and anyOf branches take on the schema around them ([#55](https://github.com/lmmx/avrotize-rs/pull/55))
+- define a repeated named type once in a schema list ([#54](https://github.com/lmmx/avrotize-rs/pull/54))
+- *(cli)* make the file name a valid namespace ([#53](https://github.com/lmmx/avrotize-rs/pull/53))
+- *(conversion)* an allOf in a property merges its members ([#52](https://github.com/lmmx/avrotize-rs/pull/52))
+- *(merging)* merging schemas of different types no longer panics ([#51](https://github.com/lmmx/avrotize-rs/pull/51))
+- *(types)* date-time keeps the time, and duration is a named fixed type ([#50](https://github.com/lmmx/avrotize-rs/pull/50))
+- *(refs)* normalize a union after resolving a definition reference in it ([#49](https://github.com/lmmx/avrotize-rs/pull/49))
+- *(conversion)* an object without properties holds any properties ([#12](https://github.com/lmmx/avrotize-rs/pull/12)) ([#48](https://github.com/lmmx/avrotize-rs/pull/48))
+- *(conversion)* additionalProperties: true holds values of any type ([#47](https://github.com/lmmx/avrotize-rs/pull/47))
+- *(conversion)* a type list with null keeps null ([#46](https://github.com/lmmx/avrotize-rs/pull/46))
+- leave const and default data alone when renaming and resolving types ([#45](https://github.com/lmmx/avrotize-rs/pull/45))
+- *(conversion)* name a pattern map field so it doesn't repeat a property ([#44](https://github.com/lmmx/avrotize-rs/pull/44))
+- *(refs)* a recursive pointer reference no longer overflows the stack ([#43](https://github.com/lmmx/avrotize-rs/pull/43))
+- *(refs)* resolve $defs references to what each definition became ([#42](https://github.com/lmmx/avrotize-rs/pull/42))
+- *(conversion)* a non-string const takes its value's type ([#41](https://github.com/lmmx/avrotize-rs/pull/41))
+- *(unions)* no unions in unions, no repeated members, one array or map ([#40](https://github.com/lmmx/avrotize-rs/pull/40))
+- *(types)* keep the primitive type for formats without a logical type ([#39](https://github.com/lmmx/avrotize-rs/pull/39))
+
+### Other
+
+- *(unions)* find a repeated union member by kind and hash, not by comparing all ([#57](https://github.com/lmmx/avrotize-rs/pull/57))
+- *(converter)* move the root out of the list instead of copying it ([#38](https://github.com/lmmx/avrotize-rs/pull/38))
+- *(postprocess)* renaming-pass fast paths (unique names; resumable suffix search) ([#37](https://github.com/lmmx/avrotize-rs/pull/37))
+- *(names)* map disallowed characters to _ without a regex ([#36](https://github.com/lmmx/avrotize-rs/pull/36))
+- *(resolver)* drop clones whose results were never used ([#35](https://github.com/lmmx/avrotize-rs/pull/35))
+- *(converter)* move values into new types instead of copying them via json! ([#34](https://github.com/lmmx/avrotize-rs/pull/34))
+- *(postprocess)* compare named type shapes by interned id, not by clone ([#33](https://github.com/lmmx/avrotize-rs/pull/33))
+- *(release)* keep the tree clean in just ship; take an explicit version ([#56](https://github.com/lmmx/avrotize-rs/pull/56))
+- *(cd)* vendor OpenSSL for the Linux cross targets ([#32](https://github.com/lmmx/avrotize-rs/pull/32))
+- *(cd)* build macOS binaries on macos-15; add dry-run and tag backfill to manual runs ([#31](https://github.com/lmmx/avrotize-rs/pull/31))
+
 ## [0.1.2](https://github.com/lmmx/avrotize-rs/compare/v0.1.1...v0.1.2) - 2026-10-19
 
 ### Fixed
