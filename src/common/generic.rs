@@ -1,8 +1,16 @@
 use serde_json::json;
 use serde_json::Value;
+use std::sync::LazyLock;
+
+/// The generic union, built once: cloning it is cheaper than building it with `json!`.
+static GENERIC_TYPE: LazyLock<Vec<Value>> = LazyLock::new(build_generic_type);
 
 /// Construct a generic Avro type union (simple types + arrays + maps).
 pub fn generic_type() -> Vec<Value> {
+    GENERIC_TYPE.clone()
+}
+
+fn build_generic_type() -> Vec<Value> {
     let simple_type_union: Vec<Value> = vec![
         json!("null"),
         json!("boolean"),

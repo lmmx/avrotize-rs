@@ -6,7 +6,7 @@ mod innermod {
     use crate::converter::merging::{merge_avro_schemas, merge_json_schemas};
     use crate::converter::structs::{
         create_array_type, create_avro_record, create_enum_type, create_map_type,
-        create_wrapper_record,
+        create_wrapper_record, object,
     };
     use crate::converter::types::json_schema_primitive_to_avro_type;
     use crate::converter::utils::{merge_dependencies_into_parent, merge_description_into_doc};
@@ -93,10 +93,7 @@ mod innermod {
                     1,
                 );
                 dependencies.extend(deps);
-                return Some(json!({
-                    "type": "map",
-                    "values": avro_type
-                }));
+                return Some(object([("type", "map".into()), ("values", avro_type)]));
             }
         }
         None
@@ -380,15 +377,15 @@ mod innermod {
                     match &effective_type {
                         Value::Array(arr) if arr.iter().any(|t| t == "null") => {}
                         _ => {
-                            effective_type = json!(["null", effective_type]);
+                            effective_type = Value::Array(vec!["null".into(), effective_type]);
                         }
                     }
                 }
 
-                let mut field = json!({
-                    "name": field_name,
-                    "type": effective_type
-                });
+                let mut field = object([
+                    ("name", field_name.as_str().into()),
+                    ("type", effective_type),
+                ]);
                 if let Some(c) = const_val {
                     field["const"] = c;
                 }
@@ -417,14 +414,15 @@ mod innermod {
         );
 
         if !pattern_types.is_empty() {
-            avro_record["fields"].as_array_mut().unwrap().push(json!({
-                "name": record_name,
-                "type": {
-                    "type": "map",
-                    "values": pattern_types,
-                    "name": record_name
-                }
-            }));
+            let pattern_map = object([
+                ("type", "map".into()),
+                ("values", Value::Array(pattern_types)),
+                ("name", record_name.as_str().into()),
+            ]);
+            avro_record["fields"].as_array_mut().unwrap().push(object([
+                ("name", record_name.as_str().into()),
+                ("type", pattern_map),
+            ]));
         }
 
         if let Some(additional) = handle_additional_properties(

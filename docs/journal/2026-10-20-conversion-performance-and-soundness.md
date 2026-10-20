@@ -130,3 +130,27 @@ Peak heap is back to 0.1.1's level.
     the 1.82 MSRV.
   - `tests/collisions.rs` uses a small in-test checker instead; fastavro checks schemas
     outside the repo.
+
+## 2026-10-20 · Moves instead of `json!` copies (`perf/no-json-macro-copies`)
+
+**Cause.** `json!` turns every interpolated expression into a value with
+`to_value(&expr)`, which serializes it into a fresh copy, even when the expression is
+an owned `Value`. Wrapping a type in an array, map, record or field, or a nullable
+`["null", t]` union, therefore deep-copied the whole nested type. In a chain, each
+level copied everything below it, and optional fields did so twice. That was 48% of
+the bytes allocated for `narrow 200`, which dhat showed as `serialize_entry` and
+`Serializer` sites.
+
+**Change.** Build those objects by moving values in. `structs::object` keeps `json!`'s
+key order. `generic_type()` is now built once and cloned, rather than rebuilt with
+`json!` on every call.
+
+**Results** (output unchanged by every check in the method):
+
+| shape | Ir before → after |
+|---|---|
+| narrow 200 | 1,210M → **454M** (−62%) |
+| deep 30 | 1,089M → 526M (−52%) |
+| collide 200 | 237M → 198M |
+| wide 2000 | 464M → 423M |
+| genson 1000 | 394M → 351M |

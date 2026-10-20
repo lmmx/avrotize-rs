@@ -1,18 +1,30 @@
-use serde_json::json;
 use serde_json::Value;
 
 use crate::common::names::avro_name;
+
+/// An object of `entries`, in order.
+///
+/// Unlike `json!`, which serializes each interpolated value into a copy, this moves
+/// the values in.
+pub(crate) fn object<const N: usize>(entries: [(&str, Value); N]) -> Value {
+    Value::Object(
+        entries
+            .into_iter()
+            .map(|(k, v)| (k.to_string(), v))
+            .collect(),
+    )
+}
 
 /// Create an Avro record type.
 ///
 /// A record is a structured type with named fields.
 pub fn create_avro_record(name: &str, namespace: &str, fields: Vec<Value>) -> Value {
-    json!({
-        "type": "record",
-        "name": avro_name(name),
-        "namespace": namespace,
-        "fields": fields
-    })
+    object([
+        ("type", "record".into()),
+        ("name", avro_name(name).into()),
+        ("namespace", namespace.into()),
+        ("fields", Value::Array(fields)),
+    ])
 }
 
 /// Create a wrapper record around another type.
@@ -29,7 +41,10 @@ pub fn create_wrapper_record(
     let mut record = create_avro_record(
         wrapper_name,
         wrapper_namespace,
-        vec![json!({ "name": wrapper_field, "type": avro_type })],
+        vec![object([
+            ("name", wrapper_field.into()),
+            ("type", avro_type),
+        ])],
     );
 
     if !dependencies.is_empty() {
@@ -48,37 +63,34 @@ pub fn create_wrapper_record(
 ///
 /// Symbols are automatically normalized with `avro_name`.
 pub fn create_enum_type(name: &str, namespace: &str, symbols: &[String]) -> Value {
-    let symbols: Vec<String> = symbols.iter().map(|s| avro_name(s)).collect();
-    json!({
-        "type": "enum",
-        "name": avro_name(name),
-        "namespace": namespace,
-        "symbols": symbols
-    })
+    let symbols = symbols
+        .iter()
+        .map(|s| Value::String(avro_name(s)))
+        .collect();
+    object([
+        ("type", "enum".into()),
+        ("name", avro_name(name).into()),
+        ("namespace", namespace.into()),
+        ("symbols", Value::Array(symbols)),
+    ])
 }
 
 /// Create an Avro array type.
 pub fn create_array_type(items: Value) -> Value {
-    json!({
-        "type": "array",
-        "items": items
-    })
+    object([("type", "array".into()), ("items", items)])
 }
 
 /// Create an Avro map type.
 pub fn create_map_type(values: Value, name: Option<&str>) -> Value {
     // Construct fields in a fixed order
     if let Some(n) = name {
-        json!({
-            "name": n,
-            "type": "map",
-            "values": values
-        })
+        object([
+            ("name", n.into()),
+            ("type", "map".into()),
+            ("values", values),
+        ])
     } else {
-        json!({
-            "type": "map",
-            "values": values
-        })
+        object([("type", "map".into()), ("values", values)])
     }
 }
 
