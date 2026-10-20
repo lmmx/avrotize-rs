@@ -93,9 +93,9 @@ pub fn json_schema_primitive_to_avro_type(
             "uuid" => {
                 avro_type = json!({"type": "string", "logicalType": "uuid"});
             }
-            _other => {
-                return Value::Array(vec![]); // bail for unsupported format
-            }
+            // Other formats (email, uri, int64, ...) only annotate the value, which
+            // keeps its primitive type (int64 has already chosen long).
+            _ => {}
         }
     }
 
