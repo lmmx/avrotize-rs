@@ -517,3 +517,16 @@ fn all_of_in_a_property_merges_its_members() {
     assert_eq!(names, [&json!("id"), &json!("legs")]);
     assert_fits(&avro, json!({"pet": {"id": "p1", "legs": 4}}));
 }
+
+#[test]
+fn a_type_repeated_in_a_schema_list_is_defined_once() {
+    // With $defs, the output is a list, and the pass that turns a repeated named type
+    // into a reference only ran on single records: both branches defined c_types.b.
+    let b = json!({"type": "object", "properties": {"a": {"type": "boolean"}}});
+    let schema = json!({"type": "object", "properties": {"c": {"oneOf": [
+            {"type": "object", "properties": {"b": b}},
+            {"type": "object", "properties": {"b": b, "z": {"type": "string"}}}]}},
+        "$defs": {"D0": {"type": "string"}}});
+    let avro = convert(&schema);
+    assert_fits(&avro, json!({"c": {"b": {"a": true}, "z": "x"}}));
+}

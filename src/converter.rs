@@ -31,7 +31,9 @@ use url::Url;
 
 use crate::common::names::avro_namespace;
 use crate::common::traversal::find_schema_node;
-use crate::dependency_resolver::{inline_dependencies_of, sort_messages_by_dependencies};
+use crate::dependency_resolver::{
+    adjust_resolved_dependencies, inline_dependencies_of, sort_messages_by_dependencies,
+};
 
 #[cfg_attr(feature = "trace", crustrace::instrument)]
 /// Convert an in-memory JSON Schema into an Avro Schema.
@@ -154,9 +156,25 @@ pub fn jsons_to_avro(
                 return root_copy;
             }
         }
-        Value::Array(define_before_use(sort_messages_by_dependencies(
-            &mut avro_schema,
-        )))
+        let items = define_before_use(sort_messages_by_dependencies(&mut avro_schema));
+        let given: HashSet<String> = items
+            .iter()
+            .filter_map(|i| i.as_str().map(str::to_string))
+            .collect();
+        // Within and across the items, a type defined again (an identical one, after
+        // disambiguation) becomes a reference to the first; an item that became one
+        // was defined in an earlier item.
+        let mut list = Value::Array(items);
+        adjust_resolved_dependencies(&mut list);
+        let Value::Array(items) = list else {
+            unreachable!("built as an array")
+        };
+        Value::Array(
+            items
+                .into_iter()
+                .filter(|item| item.as_str().is_none_or(|s| given.contains(s)))
+                .collect(),
+        )
     } else {
         Value::Array(Vec::new())
     };
