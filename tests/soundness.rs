@@ -328,3 +328,21 @@ fn a_pattern_map_field_does_not_take_a_property_name() {
         .collect();
     assert_eq!(fields, [&json!("kind"), &json!("kind_1")]);
 }
+
+#[test]
+fn data_shaped_like_a_type_is_not_renamed() {
+    // Renaming walked into const data, so a const object shaped like a record r was
+    // renamed to r_1 when a different record r existed: the constant's value changed.
+    // In the root namespace, the dependency resolver then replaced it with "ns...r".
+    let record_like =
+        json!({"type": "record", "name": "r", "namespace": "ns.document_types", "fields": []});
+    let schema = json!({"type": "object", "properties": {
+        "r": {"type": "object", "properties": {"x": {"type": "integer"}}},
+        "k": {"const": record_like.clone()},
+        "l": {"const": [1, 1, 2]}}});
+    let avro = convert(&schema);
+    assert_eq!(avro["fields"][1]["const"], record_like);
+    // The dependency resolver also replaced repeated record-like data with a reference,
+    // and deduplicated adjacent array items in data: [1, 1, 2] became [1, 2].
+    assert_eq!(avro["fields"][2]["const"], json!([1, 1, 2]));
+}
