@@ -256,3 +256,65 @@ already faster, so this gains less there.
 | deep 30 | 113M → 83.6M (−26%) |
 | narrow 200 | 25.5M → 18.2M (−29%) |
 | genson 1000 | 163M → 136M (−17%) |
+
+## 2026-10-20 · Move the root instead of copying it (`perf/root-move`)
+
+**Cause.** `find_schema_node` returns a clone of the node it finds, and for the root
+that is nearly the whole output. Its signature is public, so it stays as it is.
+
+**Change.** When the root is the list's first item, `jsons_to_avro` takes it out of the
+list instead of copying it. The search would have returned that item without looking
+further, so its depth limit could not have triggered.
+
+`inline_dependencies_of` only looks up the root's dependencies in the list, so removing
+the root changes nothing, unless the root lists itself as a dependency. In that case
+the old path is kept.
+
+**Results** (output unchanged):
+
+| shape | Ir before → after | peak heap |
+|---|---|---|
+| wide 2000 | 129M → 98.6M (−24%) | 11.3 → **6.7 MB** |
+| deep 30 | 83.6M → 66.2M (−21%) | 8.0 → 4.7 MB |
+| genson 1000 | 136M → 118M (−13%) | 7.6 → 7.1 MB |
+| narrow 200 | 18.2M → 15.4M | 2.0 → 1.3 MB |
+| collide 200 | 42.2M → 35.6M | 3.0 → 1.8 MB |
+
+## 2026-10-20 · Where the performance stack ends up
+
+Against the 0.1.2 release, conversion only, with avrotize's own regex features:
+
+| shape | Ir | wall | allocated | peak heap |
+|---|---|---|---|---|
+| wide 2000 | 497M → 98.6M (**5.0×**) | 44.5 → 7.9 ms | 55.4 → 5.5 MB | 31.1 → 6.7 MB |
+| narrow 200 | 1,612M → 15.4M (**105×**) | 243 → 1.6 ms | 299 → 2.1 MB | 81.1 → 1.3 MB |
+| deep 30 | 1,483M → 66.2M (**22×**) | 176 → 9.6 ms | 219 → 4.8 MB | 62.4 → 4.7 MB |
+| collide 200 | 454M → 35.6M (**13×**) | 36.0 → 2.6 ms | 22.4 → 1.9 MB | 7.9 → 1.8 MB |
+| collide 1000 | 8,263M → 193M (**43×**) | 909 → 15 ms | 158 → 9.0 MB | 39.5 → 9.0 MB |
+| genson 1000 | 396M → 118M (**3.3×**) | 44.7 → 11.9 ms | 61.0 → 8.4 MB | 7.6 → 7.1 MB |
+
+The output hash is the same as 0.1.2's on every shape.
+
+**Downstream build.** With regex's default features added (polars-genson's build),
+the regex in 0.1.2 is faster, so the gains are a little smaller:
+
+| shape | 0.1.2 Ir → stack Ir | wall |
+|---|---|---|
+| wide 2000 | 454M → 98.6M (4.6×) | 50.0 → 8.0 ms |
+| narrow 200 | 1,519M → 15.4M (99×) | 248 → 2.2 ms |
+| deep 30 | 1,387M → 66.2M (21×) | 169 → 8.7 ms |
+| collide 200 | 444M → 35.6M (12.5×) | 34.1 → 3.0 ms |
+| genson 1000 | 361M → 118M (3.1×) | 38.7 → 11.8 ms |
+
+**Against 0.1.1,** the release polars-genson used before 0.1.2: 30× fewer instructions
+on wide, 95× on narrow, 40× on deep, 25× on genson.
+
+**What is left.** Of `genson 1000`'s 118M instructions, these are mostly:
+
+- the allocator (malloc and free together, about a third);
+- serde_json's `IndexMap` key hashing (SipHash, about 7%), which is inherent to
+  `Value` with `preserve_order`;
+- the shape interner's SipHash (see the rejected fast hasher above).
+
+Nesting depth no longer multiplies cost. All five shapes now scale roughly linearly
+with their size.
