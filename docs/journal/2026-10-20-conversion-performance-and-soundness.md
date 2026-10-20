@@ -230,3 +230,29 @@ It also passed once at 200,000 strings.
 
 In a downstream build with regex's default features (polars-genson's), regex was
 already faster, so this gains less there.
+
+## 2026-10-20 · Renaming-pass fast paths (`perf/disambiguation-fast-paths`)
+
+**Causes.**
+- **Shapes interned when nothing can collide.** Every schema had every shape interned,
+  even when each full name was unique and no rename was possible.
+- **A quadratic search for a free name.** Each new shape of a name searched from `r_1`
+  upwards, allocating a candidate name and a key per probe. M shapes under one name
+  cost O(M²), which shows on `collide 200`.
+
+**Changes.**
+- **Count names first.** The pass collecting taken names already visits every named
+  type. If each full name occurs once, it returns before hashing any shape.
+- **Resume the suffix search.** Names are only ever added to the taken set, so the first
+  free suffix for a name never decreases. Each family remembers where its search
+  stopped and continues from there, giving the same name.
+
+**Results** (output unchanged; `tests/disambiguation.rs` still matches 0.1.2):
+
+| shape | Ir before → after |
+|---|---|
+| collide 200 | 137M → **42.2M** (−69%) |
+| wide 2000 | 173M → 129M (−26%) |
+| deep 30 | 113M → 83.6M (−26%) |
+| narrow 200 | 25.5M → 18.2M (−29%) |
+| genson 1000 | 163M → 136M (−17%) |

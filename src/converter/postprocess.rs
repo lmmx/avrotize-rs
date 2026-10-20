@@ -190,26 +190,34 @@ impl<'a> ShapeIds<'a> {
 /// different one takes the name of an earlier identical renamed one or else the first
 /// free ordinal suffix (`r_1`, `r_2`, ...).
 pub fn disambiguate_named_types(avro_schema: &mut [Value]) {
-    /// Visit every value in document order, collecting the names taken and, for each
-    /// named type, the id of its shape (as found, before any renaming).
+    /// Collect the full names taken, and count the named types.
+    fn collect_names(value: &Value, taken: &mut HashSet<(String, String)>, count: &mut usize) {
+        if let Some(key) = named_type_key(value) {
+            taken.insert(key);
+            *count += 1;
+        }
+        match value {
+            Value::Object(obj) => obj.values().for_each(|v| collect_names(v, taken, count)),
+            Value::Array(arr) => arr.iter().for_each(|v| collect_names(v, taken, count)),
+            _ => {}
+        }
+    }
+
+    /// Visit every value in document order, recording for each named type the id of
+    /// its shape (as found, before any renaming).
     fn survey<'a>(
         value: &'a Value,
         data: bool,
         ids: &mut ShapeIds<'a>,
         named: &mut Vec<u32>,
-        taken: &mut HashSet<(String, String)>,
     ) -> u32 {
-        let slot = named_type_key(value).map(|key| {
-            taken.insert(key);
+        let slot = named_type_key(value).map(|_| {
             named.push(0);
             named.len() - 1
         });
         let id = match value {
             Value::Array(arr) => {
-                let items = arr
-                    .iter()
-                    .map(|v| survey(v, data, ids, named, taken))
-                    .collect();
+                let items = arr.iter().map(|v| survey(v, data, ids, named)).collect();
                 ids.intern(Shape::Array(items))
             }
             Value::Object(obj) => {
@@ -217,7 +225,7 @@ pub fn disambiguate_named_types(avro_schema: &mut [Value]) {
                 let mut entries: Vec<(&str, u32)> = Vec::with_capacity(obj.len());
                 for (k, v) in obj {
                     let child_data = data || k == "const" || k == "default";
-                    let id = survey(v, child_data, ids, named, taken);
+                    let id = survey(v, child_data, ids, named);
                     if !(strip && BOOKKEEPING_KEYS.contains(&k.as_str())) {
                         entries.push((k.as_str(), id));
                     }
@@ -235,8 +243,15 @@ pub fn disambiguate_named_types(avro_schema: &mut [Value]) {
         id
     }
 
-    /// Names given so far, per original full name: (shape id, name given).
-    type Given = HashMap<(String, String), Vec<(u32, String)>>;
+    /// Per original full name: the name given to each shape so far, and the suffix
+    /// from which to look for a free name.
+    #[derive(Default)]
+    struct Family {
+        given: Vec<(u32, String)>,
+        next_suffix: usize,
+    }
+
+    type Given = HashMap<(String, String), Family>;
 
     fn rename(
         avro_type: &mut Value,
@@ -246,21 +261,26 @@ pub fn disambiguate_named_types(avro_schema: &mut [Value]) {
     ) {
         if let Some((namespace, name)) = named_type_key(avro_type) {
             let shape = *named.next().expect("survey saw every named type");
-            let defs = given.entry((namespace.clone(), name.clone())).or_default();
-            let name_given = match defs.iter().find(|(s, _)| *s == shape) {
+            let family = given.entry((namespace.clone(), name.clone())).or_default();
+            let name_given = match family.given.iter().find(|(s, _)| *s == shape) {
                 Some((_, g)) => g.clone(),
                 None => {
-                    let g = if defs.is_empty() {
+                    let g = if family.given.is_empty() {
                         name.clone()
                     } else {
-                        let fresh = (1..)
-                            .map(|i| format!("{name}_{i}"))
-                            .find(|n| !taken.contains(&(namespace.clone(), n.clone())))
-                            .unwrap();
-                        taken.insert((namespace.clone(), fresh.clone()));
-                        fresh
+                        // The first free suffix: names are only ever added to `taken`, so
+                        // it never decreases, and the search can resume where it stopped.
+                        let mut i = family.next_suffix.max(1);
+                        let mut key = (namespace, format!("{name}_{i}"));
+                        while taken.contains(&key) {
+                            i += 1;
+                            key.1 = format!("{name}_{i}");
+                        }
+                        family.next_suffix = i + 1;
+                        taken.insert(key.clone());
+                        key.1
                     };
-                    defs.push((shape, g.clone()));
+                    family.given.push((shape, g.clone()));
                     g
                 }
             };
@@ -278,11 +298,18 @@ pub fn disambiguate_named_types(avro_schema: &mut [Value]) {
     }
 
     let mut taken = HashSet::new();
+    let mut count = 0;
+    for t in avro_schema.iter() {
+        collect_names(t, &mut taken, &mut count);
+    }
+    if taken.len() == count {
+        return; // every full name is defined once, so nothing can need renaming
+    }
     let mut named = Vec::new();
     {
         let mut ids = ShapeIds::default();
         for t in avro_schema.iter() {
-            survey(t, false, &mut ids, &mut named, &mut taken);
+            survey(t, false, &mut ids, &mut named);
         }
     }
     let mut given = Given::new();
