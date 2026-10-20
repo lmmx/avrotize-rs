@@ -117,10 +117,9 @@ mod innermod {
         let mut dependencies: Vec<String> = Vec::new();
 
         if let Some(ref_str) = json_object.get("$ref").and_then(|r| r.as_str()) {
-            if let Some(def_name) = ref_str.strip_prefix("#/$defs/") {
-                // 👉 Just return the Avro type name that was registered by process_definition
-                let fq_name = format!("{}.{}", namespace, def_name);
-                return json!(fq_name);
+            if is_definition_ref(ref_str) {
+                // Resolved by jsons_to_avro once every definition is registered.
+                return Value::String(ref_str.to_string());
             }
 
             if let Some(ptr) = ref_str.strip_prefix('#') {
@@ -330,8 +329,9 @@ mod innermod {
                     // Special case $ref
                     let avro_field_type =
                         if let Some(ref_str) = schema_obj.get("$ref").and_then(|r| r.as_str()) {
-                            if let Some(def_name) = ref_str.strip_prefix("#/$defs/") {
-                                json!(format!("{}.{}", effective_namespace, def_name))
+                            if is_definition_ref(ref_str) {
+                                // Resolved by jsons_to_avro once every definition is registered.
+                                Value::String(ref_str.to_string())
                             } else if let Some(ptr) = ref_str.strip_prefix('#') {
                                 if let Some(resolved) = json_schema.pointer(ptr) {
                                     json_schema_object_to_avro_record(
@@ -474,6 +474,17 @@ mod innermod {
         avro_record
     }
 
+    /// Whether `ref_str` points at an entry of `$defs`, e.g. `#/$defs/address`.
+    ///
+    /// Conversion leaves such a reference as it is; `jsons_to_avro` replaces it with
+    /// the definition's registered name, or with its type for a definition that is not
+    /// a named type.
+    pub(crate) fn is_definition_ref(ref_str: &str) -> bool {
+        ref_str
+            .strip_prefix("#/$defs/")
+            .is_some_and(|name| !name.is_empty() && !name.contains('/'))
+    }
+
     /// The Avro type of a non-string `const` value, mapped as its JSON type would be.
     fn const_type(value: &Value) -> Option<&'static str> {
         match value {
@@ -517,6 +528,35 @@ mod innermod {
         let avro_type = Value::Null;
 
         if let Some(obj) = json_type.as_object() {
+            // A reference on its own (in items, a union branch, additionalProperties ...)
+            if let Some(ref_str) = obj.get("$ref").and_then(|r| r.as_str()) {
+                if !obj.contains_key("type") && !has_composition_keywords(json_type) {
+                    if is_definition_ref(ref_str) {
+                        return Value::String(ref_str.to_string());
+                    }
+                    if let Some(resolved) = ref_str
+                        .strip_prefix('#')
+                        .and_then(|p| json_schema.pointer(p))
+                    {
+                        return json_type_to_avro_type(
+                            resolved,
+                            record_name,
+                            field_name,
+                            namespace,
+                            utility_namespace,
+                            dependencies,
+                            json_schema,
+                            base_uri,
+                            avro_schema,
+                            record_stack,
+                            recursion_depth + 1,
+                        );
+                    }
+                    eprintln!("WARN: external $ref not supported: {}", ref_str);
+                    return json!("string");
+                }
+            }
+
             let mut json_object_type = obj.get("type").cloned();
 
             // Handle list-of-types (e.g. "type": ["null","string"])
