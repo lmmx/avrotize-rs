@@ -174,3 +174,23 @@ fn diff_snapshots(#[case] stem: &str) {
         assert_snapshot!(format!("{stem}.diff"), diff);
     }
 }
+
+#[test]
+fn a_file_name_that_is_not_a_namespace_is_made_into_one() {
+    let dir = tempdir().unwrap();
+    let input_path = dir.path().join("my-schema.json");
+    let output_path = dir.path().join("my-schema.avsc");
+    fs::write(
+        &input_path,
+        r#"{"type": "object", "properties": {"a": {"type": "string"}}}"#,
+    )
+    .unwrap();
+    Command::cargo_bin("jsonschema2avro")
+        .unwrap()
+        .arg(input_path.to_str().unwrap())
+        .arg(output_path.to_str().unwrap())
+        .assert()
+        .success();
+    let avro: Value = serde_json::from_str(&fs::read_to_string(&output_path).unwrap()).unwrap();
+    assert_eq!(avro["namespace"], "my_schema");
+}

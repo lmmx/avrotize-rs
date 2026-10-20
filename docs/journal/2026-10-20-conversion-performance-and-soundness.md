@@ -665,3 +665,15 @@ generic union to a record with the merged fields. The fuzzer's `ok` count stays 
 (736 → 735). Those properties were accepted, shallowly, by the generic type, and are
 now records. Like every converted record they are closed, so instances with extra
 keys move from `ok` to `extra` (see the limitations below).
+
+## 2026-10-20 · A file name becomes a valid namespace (`fix/cli-namespace`)
+
+**Defect.** Without `--namespace` or `$id`, the namespace was the input file's stem
+as it is. `my-schema.json` therefore gave the namespace `my-schema`, which strict
+parsers reject. Found while reducing a fuzz case by hand.
+
+**Change.** The stem goes through `avro_namespace`, which maps disallowed characters to
+`_` (Python avrotize does the same for `-`) and prefixes a leading digit. A stem that
+is already a valid namespace is unchanged, which covers every fixture.
+
+**Compatibility.** Only namespaces that were invalid change.
