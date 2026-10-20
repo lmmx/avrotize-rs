@@ -696,3 +696,111 @@ into a reference was defined in an earlier item, and is dropped.
 **Validation.** Every output that changed was invalid before. On 2,000 standard and
 1,500 composition-heavy fuzzed schemas, none changed, so the fix rests on the reduced
 regression test and on the next entry's fuzz run, which is clean on top of it.
+
+## 2026-10-20 · `oneOf`/`anyOf` branches take on the schema around them (`fix/composition-siblings`)
+
+**Defect.** JSON Schema applies a schema's other keywords along with its `oneOf` or
+`anyOf`, but each branch was converted alone. This lost types in two common patterns:
+
+- `{"type": "object", "properties": {...}, "oneOf": [{"required": ["a"]}, {"required": ["b"]}]}`:
+  the properties were lost, and each branch became the generic type;
+- a type list of more than one type besides null, such as `["object", "string"]`.
+  It becomes a `oneOf` of its bare types, so `properties`, `items` and the rest were
+  lost, and the object became the generic map. genson can infer such lists for a key
+  whose values are sometimes objects and sometimes scalars.
+
+**Change.** The schema's keywords are merged into each branch before it is converted,
+as Python avrotize does (`required` is intersected for `oneOf`). Three things are not
+merged:
+
+- a `$ref` branch, or a branch of another type, which stays as it is;
+- annotations;
+- `enum` and `const`. With a type list, these would turn every branch into an enum and
+  lose the non-string values.
+
+Each `oneOf` branch keeps its own `required`, so `a` is required in the first record
+and `b` in the second. Python's output makes both optional in both.
+
+**Validation.** The fuzzer's generator doesn't produce these patterns, so a variant adds
+both (compositions beside properties, and type lists with `object`).
+
+- On 1,500 of those, 539 outputs change, all with a composition or a type list, and
+  the strict parser accepts every new output.
+- `type` failures fall from 306 to 281. `ok` is flat (699 → 698), as the new records
+  are closed (see the limitations below).
+- The first run of this fix produced 16 invalid outputs, which led to the previous
+  entry. On top of it there are none.
+
+**Compatibility: this changes valid output.** Such properties go from the generic
+union to records, and a type list's object branch from a generic map to a record.
+Values that the generic type could only hold two levels deep are now typed.
+
+## 2026-10-20 · Where the soundness stack ends up
+
+The fuzzer run on each branch: 2,000 schemas, seed 7, property names valid as Avro names
+(`SAFE_KEYS=1`). Each schema is counted under its *first* failure, so fixing one kind can
+expose another underneath it, and a count can rise as a fix lands.
+
+| after | ok | invalid | strict | union | enum | type | extra |
+|---|---|---|---|---|---|---|---|
+| base (`perf/root-move`) | 262 | 53 | 287 | 108 | 15 | 699 | 576 |
+| `fix/unknown-formats` | 289 | 44 | 260 | 73 | 16 | 692 | 626 |
+| `fix/union-members` | 329 | 48 | 15 | 92 | 8 | 756 | 752 |
+| `fix/non-string-const` | 343 | 47 | 17 | 73 | – | 749 | 771 |
+| `fix/defs-references` | 385 | – | 16 | 89 | – | 742 | 768 |
+| `fix/pattern-field-name` | 371 | – | 5 | 88 | – | 768 | 768 |
+| `fix/nullable-type-lists` | 378 | – | – | 67 | – | 748 | 807 |
+| `fix/additional-properties-true` | 434 | – | – | 59 | – | 728 | 779 |
+| `fix/object-without-properties` | 736 | – | – | 75 | – | 437 | 752 |
+| `fix/all-of-members` | 735 | – | – | 67 | – | 437 | 761 |
+
+Branches not listed leave these counts unchanged. The generator doesn't produce their
+defect (recursive references, data shaped like a type, a reference that resolves to an
+inlined type, duration, three-way type conflicts, file names, compositions with
+siblings), so their reduced regression tests and the targeted differentials above
+cover them.
+
+With all property names allowed, the base gives 197 ok, 60 invalid and 825 strict
+failures. The final branch gives 541 ok, 0 invalid and 840 strict failures. Every strict
+failure is a field name (`x-y`, `1st`), which is the first limitation below.
+
+**No crash, no invalid Avro.** No fuzzed schema crashes the converter. fastavro and the
+strict parser both accept every output, except for field names.
+
+### Limitations, documented rather than changed
+
+Every remaining failure in the final run falls into one of these. Each is shared with
+Python avrotize unless noted, and each would change valid output, so each needs a
+compatibility decision first.
+
+1. **Field names are not sanitized.** A property named `x-y` or `1st` keeps its name.
+   fastavro accepts it, but the Avro specification, Java and `apache-avro` reject it.
+   Python renames it (`x_y`, `_1st`). That changes which field a data key is written to,
+   and it can collide (`x-y` and `x_y`). An opt-in, or a sanitized name plus an alias
+   or `altnames`, needs a decision.
+2. **Records are closed.** An object with `properties` becomes a record, and a key
+   outside them has nowhere to go, even though JSON Schema allows extra properties by
+   default. This is the largest remaining kind (`extra`). The fix would be a record
+   plus a catch-all map field, which changes every record's shape.
+3. **`integer` is a 32-bit `int`.** Values beyond ±2³¹ don't fit. `format: int64` gives
+   `long`, as does a `const` integer beyond 32 bits.
+4. **`patternProperties` need the data restructured.** They become a map field next to
+   the properties, so a writer has to move matching keys into that field.
+5. **The generic type is two levels deep.** Values nested deeper than an array or map
+   of arrays or maps of primitives don't fit it. Python adds an extensible `AnyValue`
+   record. A recursive generic type would need a named record, which changes the
+   encoding.
+6. **Lossy enum symbols.** Symbols are normalized to Avro names, so `a-b` and `a_b`
+   become one symbol, and non-string enum values are dropped.
+7. **Constraints with no Avro equivalent are dropped.** These are `minLength`,
+   `maxLength`, `pattern`, `minimum`, `maximum`, `minProperties`, `maxProperties`,
+   `minItems`, `maxItems`, `uniqueItems` and `contains`.
+8. **Logical types need translation.** `date`, `time`, `date-time` and `duration`
+   values are strings in JSON and numbers or bytes in Avro.
+9. **A primitive root converts to `[]`.** This matches Python.
+10. **An unsatisfiable `allOf`** (members of different types) converts to a union of
+    the types, with the merged keywords, rather than to an error.
+
+**Seen in passing, not fixed.** The converter records primitive type names (`"null"`)
+as dependencies. That is harmless, but it is why the `$defs` fix stays out of the
+dependency lists.

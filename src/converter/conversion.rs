@@ -502,6 +502,44 @@ mod innermod {
                 .all(|k| json_object.get(*k).is_none())
     }
 
+    /// Keywords of a schema with `oneOf` or `anyOf` that its branches don't take on:
+    /// the branches themselves, annotations, and values (an enum of a type list is
+    /// converted as the list's types).
+    const NOT_FOR_BRANCHES: [&str; 11] = [
+        "oneOf",
+        "anyOf",
+        "description",
+        "title",
+        "$comment",
+        "examples",
+        "default",
+        "$id",
+        "$schema",
+        "enum",
+        "const",
+    ];
+
+    /// What each branch of a `oneOf` or `anyOf` in `obj` takes on from `obj` (its type,
+    /// properties, required, ...), as JSON Schema applies both; `None` if nothing.
+    fn composition_base(obj: &serde_json::Map<String, Value>) -> Option<Value> {
+        let base: serde_json::Map<String, Value> = obj
+            .iter()
+            .filter(|(k, _)| !NOT_FOR_BRANCHES.contains(&k.as_str()))
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect();
+        (!base.is_empty()).then_some(Value::Object(base))
+    }
+
+    /// Whether `base` can be merged into the branch `sub`: not into a reference, and
+    /// not into a branch of another type, which stays as it is (as in Python avrotize).
+    fn merges_into(base: &Value, sub: &Value) -> bool {
+        sub.get("$ref").is_none()
+            && match (base.get("type"), sub.get("type")) {
+                (Some(t1), Some(t2)) => t1 == t2,
+                _ => true,
+            }
+    }
+
     /// The schema an `allOf` describes: the schema without its `allOf`, merged with
     /// each member, a member's local `$ref` merged with what it points at.
     fn merge_all_of(json_type: &Value, json_schema: &Value) -> Value {
@@ -677,10 +715,16 @@ mod innermod {
                 .and_then(|v| v.as_array())
                 .or_else(|| obj.get("anyOf").and_then(|v| v.as_array()))
             {
+                let base = composition_base(obj);
+                let intersect = obj.contains_key("oneOf");
                 let mut union_types = Vec::new();
                 for sub in subs {
+                    let merged = base
+                        .as_ref()
+                        .filter(|base| merges_into(base, sub))
+                        .map(|base| merge_json_schemas(&[base.clone(), sub.clone()], intersect));
                     let avro_ty = json_type_to_avro_type(
-                        sub,
+                        merged.as_ref().unwrap_or(sub),
                         record_name,
                         field_name,
                         namespace,

@@ -530,3 +530,63 @@ fn a_type_repeated_in_a_schema_list_is_defined_once() {
     let avro = convert(&schema);
     assert_fits(&avro, json!({"c": {"b": {"a": true}, "z": "x"}}));
 }
+
+#[test]
+fn one_of_branches_take_on_the_schema_around_them() {
+    // Each branch was converted alone, so `properties` beside a `oneOf` were lost and
+    // the branches (which only list required properties) became the generic type.
+    let schema = json!({"type": "object", "required": ["v"], "properties": {"v": {
+        "type": "object",
+        "properties": {"a": {"type": "string"}, "b": {"type": "integer"}},
+        "oneOf": [{"required": ["a"]}, {"required": ["b"]}]}}});
+    let avro = convert(&schema);
+    let union = avro["fields"][0]["type"].as_array().unwrap();
+    assert_eq!(union.len(), 2);
+    for (branch, required) in union.iter().zip(["a", "b"]) {
+        assert_eq!(branch["type"], "record");
+        let field = |name: &str| {
+            branch["fields"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|f| f["name"] == name)
+                .map(|f| f["type"].clone())
+                .unwrap()
+        };
+        // The branch's own required property is not nullable; the other one is.
+        assert!(!field(required).is_array(), "{branch}");
+    }
+    assert_fits(&avro, json!({"v": {"a": "x"}}));
+    assert_fits(&avro, json!({"v": {"b": 1}}));
+}
+
+#[test]
+fn an_object_in_a_type_list_keeps_its_properties() {
+    let schema = json!({"type": "object", "required": ["t"], "properties": {"t": {
+        "type": ["object", "string", "integer"],
+        "properties": {"k": {"type": "string"}}}}});
+    let avro = convert(&schema);
+    let union = avro["fields"][0]["type"].as_array().unwrap();
+    assert_eq!(union[0]["type"], "record");
+    assert_eq!(union[0]["fields"][0]["name"], "k");
+    assert_eq!(&union[1..], [json!("string"), json!("int")]);
+    assert_fits(&avro, json!({"t": {"k": "x"}}));
+    assert_fits(&avro, json!({"t": 3}));
+}
+
+#[test]
+fn a_reference_or_a_branch_of_another_type_stays_as_it_is() {
+    let schema = json!({"type": "object", "required": ["v"],
+        "$defs": {"S": {"type": "object", "properties": {"s": {"type": "string"}}}},
+        "properties": {"v": {
+            "type": "object", "properties": {"a": {"type": "string"}},
+            "anyOf": [{"$ref": "#/$defs/S"}, {"type": "string"}]}}});
+    let avro = convert(&schema);
+    let document = avro
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|t| t["name"] == "document")
+        .unwrap();
+    assert_eq!(document["fields"][0]["type"], json!(["ns.S", "string"]));
+}
