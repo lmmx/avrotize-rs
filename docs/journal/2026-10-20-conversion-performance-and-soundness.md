@@ -409,3 +409,21 @@ rule before.
 
 **Compatibility.** Those schemas were rejected by every Avro parser, so no working
 pipeline depends on them.
+
+## 2026-10-20 · Non-string consts (`fix/non-string-const`)
+
+**Defect.** A `const` became an enum of its string values. A number, boolean, null,
+object or array const therefore gave an enum with no symbols, which is invalid Avro
+and holds nothing.
+
+**Change.** A scalar const takes its value's type, as its JSON type would map:
+
+- `int`, or `long` for an integer beyond 32 bits;
+- `float`, `boolean` or `null`.
+
+An object or array const takes the generic type, which can hold it. The field keeps
+its `const` attribute. String consts are unchanged.
+
+**Compatibility.** The changed outputs were all invalid before. Python avrotize makes
+these enums of stringified symbols (`_7`, `_True`), which fit the data only after
+translating it. The value's type needs no translation.
