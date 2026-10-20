@@ -2,11 +2,28 @@ use regex::Regex;
 use serde_json::Value;
 use std::sync::LazyLock;
 
-/// Characters an Avro name may not contain.
-static NOT_NAME_CHARS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[^a-zA-Z0-9_]").unwrap());
-/// Characters an Avro namespace may not contain (dots separate its parts).
-static NOT_NAMESPACE_CHARS: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"[^a-zA-Z0-9_\.]").unwrap());
+/// Whether an Avro name may contain `c`.
+fn is_name_char(c: char) -> bool {
+    c.is_ascii_alphanumeric() || c == '_'
+}
+
+/// Whether an Avro namespace may contain `c` (dots separate its parts).
+fn is_namespace_char(c: char) -> bool {
+    is_name_char(c) || c == '.'
+}
+
+/// `s` with each character that `allowed` rejects replaced by one `_`.
+///
+/// This is what replacing `[^...]` with `_` does: the negated class matches one whole
+/// character at a time. The common case, a valid name, is copied without rebuilding it.
+fn replace_disallowed(s: &str, allowed: fn(char) -> bool) -> String {
+    if s.chars().all(allowed) {
+        return s.to_string();
+    }
+    s.chars()
+        .map(|c| if allowed(c) { c } else { '_' })
+        .collect()
+}
 /// Words of a string that starts with a capital (`pascal`, `camel`, `snake`).
 static CAPITALISED_WORDS: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"[A-Z][a-z0-9_]*\.?").unwrap());
@@ -21,7 +38,7 @@ static TYPING_ARGS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"([\w\.]+)\[(
 /// Ensures the identifier starts with a letter or underscore,
 /// replaces invalid characters with `_`, and prefixes leading digits.
 pub fn avro_name(name: &str) -> String {
-    let mut val = NOT_NAME_CHARS.replace_all(name, "_").to_string();
+    let mut val = replace_disallowed(name, is_name_char);
     if val
         .chars()
         .next()
@@ -51,7 +68,7 @@ pub fn avro_name_with_altname(name: &str) -> (String, Option<String>) {
 /// Replaces invalid chars with `_` but preserves dots as separators.
 /// Prefixes with `_` if starting with a digit.
 pub fn avro_namespace(name: &str) -> String {
-    let mut val = NOT_NAMESPACE_CHARS.replace_all(name, "_").to_string();
+    let mut val = replace_disallowed(name, is_namespace_char);
     if val
         .chars()
         .next()

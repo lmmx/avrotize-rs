@@ -199,3 +199,34 @@ list is mutated in place. The Rust port adjusts a clone. So in `$defs` and split
 Rust output may keep repeated inline definitions that Python would turn into
 references. Restoring the adjustment would change output, so it is not part of a
 performance PR.
+
+## 2026-10-20 · A character map instead of a regex (`perf/name-char-map`)
+
+**Cause.** avrotize builds `regex` without its `perf-*` features. Matching therefore
+runs on the PikeVM, the slowest engine, one character at a time. For
+`avro_name`/`avro_namespace`'s `replace_all` that was 15–20% of instructions
+(`PikeVM::epsilon_closure`, `search_imp`, `next`).
+
+**Change.** A negated class `[^a-zA-Z0-9_]` matches exactly one character, so replacing
+it with `_` is a character map. When every character is allowed, which is the usual
+case, the string is copied unchanged. `tests/names.rs` (#29) already checks both
+functions against 0.1.1's regex implementation, on generated strings including:
+
+- ASCII, dots, dashes and whitespace;
+- accented and CJK characters, emoji and combining marks;
+- NUL, U+FFFF and `İ`.
+
+It also passed once at 200,000 strings.
+
+**Results** (output unchanged):
+
+| shape | Ir before → after |
+|---|---|
+| narrow 200 | 118M → **25.5M** (−78%) |
+| deep 30 | 212M → 113M (−46%) |
+| wide 2000 | 222M → 173M (−22%) |
+| genson 1000 | 204M → 163M (−20%) |
+| collide 200 | 149M → 137M |
+
+In a downstream build with regex's default features (polars-genson's), regex was
+already faster, so this gains less there.
