@@ -120,6 +120,65 @@ fn named_type_key(avro_type: &Value) -> Option<(String, String)> {
     Some((namespace.to_string(), name.to_string()))
 }
 
+/// The shape of a JSON value, with each child replaced by its interned id.
+///
+/// Objects list their entries sorted by key, as `Value` equality ignores key order.
+#[derive(PartialEq, Eq, Hash)]
+enum Shape<'a> {
+    Null,
+    Bool(bool),
+    Number(&'a serde_json::Number),
+    String(&'a str),
+    Array(Vec<u32>),
+    Object(Vec<(&'a str, u32)>),
+}
+
+/// Interns shapes, so that two values get the same id exactly when they are equal
+/// once bookkeeping keys are stripped as [`strip_bookkeeping`] strips them.
+///
+/// A shape holds its children's ids, so interning a value costs work proportional to
+/// its own entries, and equal ids mean equal values: the map compares whole shapes,
+/// and a hash only picks the bucket.
+#[derive(Default)]
+struct ShapeIds<'a> {
+    ids: HashMap<Shape<'a>, u32>,
+}
+
+impl<'a> ShapeIds<'a> {
+    fn intern(&mut self, shape: Shape<'a>) -> u32 {
+        let next = self.ids.len() as u32;
+        *self.ids.entry(shape).or_insert(next)
+    }
+
+    /// The id of `value`; `data` is set inside `const` and `default` values, which
+    /// keep their bookkeeping-named keys.
+    fn id(&mut self, value: &'a Value, data: bool) -> u32 {
+        let shape = match value {
+            Value::Null => Shape::Null,
+            Value::Bool(b) => Shape::Bool(*b),
+            Value::Number(n) => Shape::Number(n),
+            Value::String(s) => Shape::String(s),
+            Value::Array(arr) => Shape::Array(arr.iter().map(|v| self.id(v, data)).collect()),
+            Value::Object(obj) => {
+                let strip = !data && obj.contains_key("type");
+                let mut entries: Vec<(&str, u32)> = obj
+                    .iter()
+                    .filter(|(k, _)| !(strip && BOOKKEEPING_KEYS.contains(&k.as_str())))
+                    .map(|(k, v)| {
+                        (
+                            k.as_str(),
+                            self.id(v, data || k == "const" || k == "default"),
+                        )
+                    })
+                    .collect();
+                entries.sort_unstable_by(|a, b| a.0.cmp(b.0));
+                Shape::Object(entries)
+            }
+        };
+        self.intern(shape)
+    }
+}
+
 /// Give each differently shaped named type its own name.
 ///
 /// Types are named after the property they came from, so two differently shaped
@@ -131,59 +190,106 @@ fn named_type_key(avro_type: &Value) -> Option<(String, String)> {
 /// different one takes the name of an earlier identical renamed one or else the first
 /// free ordinal suffix (`r_1`, `r_2`, ...).
 pub fn disambiguate_named_types(avro_schema: &mut [Value]) {
-    fn collect_names(avro_type: &Value, taken: &mut HashSet<(String, String)>) {
-        if let Some(key) = named_type_key(avro_type) {
+    /// Visit every value in document order, collecting the names taken and, for each
+    /// named type, the id of its shape (as found, before any renaming).
+    fn survey<'a>(
+        value: &'a Value,
+        data: bool,
+        ids: &mut ShapeIds<'a>,
+        named: &mut Vec<u32>,
+        taken: &mut HashSet<(String, String)>,
+    ) -> u32 {
+        let slot = named_type_key(value).map(|key| {
             taken.insert(key);
+            named.push(0);
+            named.len() - 1
+        });
+        let id = match value {
+            Value::Array(arr) => {
+                let items = arr
+                    .iter()
+                    .map(|v| survey(v, data, ids, named, taken))
+                    .collect();
+                ids.intern(Shape::Array(items))
+            }
+            Value::Object(obj) => {
+                let strip = !data && obj.contains_key("type");
+                let mut entries: Vec<(&str, u32)> = Vec::with_capacity(obj.len());
+                for (k, v) in obj {
+                    let child_data = data || k == "const" || k == "default";
+                    let id = survey(v, child_data, ids, named, taken);
+                    if !(strip && BOOKKEEPING_KEYS.contains(&k.as_str())) {
+                        entries.push((k.as_str(), id));
+                    }
+                }
+                entries.sort_unstable_by(|a, b| a.0.cmp(b.0));
+                ids.intern(Shape::Object(entries))
+            }
+            _ => ids.id(value, data),
+        };
+        if let Some(slot) = slot {
+            // A named type is compared with its own bookkeeping stripped, even inside
+            // const or default data.
+            named[slot] = if data { ids.id(value, false) } else { id };
         }
-        match avro_type {
-            Value::Object(obj) => obj.values().for_each(|v| collect_names(v, taken)),
-            Value::Array(arr) => arr.iter().for_each(|v| collect_names(v, taken)),
-            _ => {}
-        }
+        id
     }
 
-    /// Definitions seen so far, per original full name: (shape, name given).
-    type Seen = HashMap<(String, String), Vec<(Value, String)>>;
+    /// Names given so far, per original full name: (shape id, name given).
+    type Given = HashMap<(String, String), Vec<(u32, String)>>;
 
-    fn rename(avro_type: &mut Value, seen: &mut Seen, taken: &mut HashSet<(String, String)>) {
+    fn rename(
+        avro_type: &mut Value,
+        named: &mut std::slice::Iter<u32>,
+        given: &mut Given,
+        taken: &mut HashSet<(String, String)>,
+    ) {
         if let Some((namespace, name)) = named_type_key(avro_type) {
-            let mut shape = avro_type.clone();
-            strip_bookkeeping(&mut shape);
-            let defs = seen.entry((namespace.clone(), name.clone())).or_default();
-            let given = match defs.iter().find(|(s, _)| *s == shape) {
-                Some((_, given)) => given.clone(),
-                None if defs.is_empty() => name.clone(),
+            let shape = *named.next().expect("survey saw every named type");
+            let defs = given.entry((namespace.clone(), name.clone())).or_default();
+            let name_given = match defs.iter().find(|(s, _)| *s == shape) {
+                Some((_, g)) => g.clone(),
                 None => {
-                    let fresh = (1..)
-                        .map(|i| format!("{name}_{i}"))
-                        .find(|n| !taken.contains(&(namespace.clone(), n.clone())))
-                        .unwrap();
-                    taken.insert((namespace.clone(), fresh.clone()));
-                    fresh
+                    let g = if defs.is_empty() {
+                        name.clone()
+                    } else {
+                        let fresh = (1..)
+                            .map(|i| format!("{name}_{i}"))
+                            .find(|n| !taken.contains(&(namespace.clone(), n.clone())))
+                            .unwrap();
+                        taken.insert((namespace.clone(), fresh.clone()));
+                        fresh
+                    };
+                    defs.push((shape, g.clone()));
+                    g
                 }
             };
-            if !defs.iter().any(|(s, _)| *s == shape) {
-                defs.push((shape, given.clone()));
-            }
-            if given != name {
-                avro_type["name"] = Value::String(given);
+            if name_given != name {
+                avro_type["name"] = Value::String(name_given);
             }
         }
         match avro_type {
-            Value::Object(obj) => obj.values_mut().for_each(|v| rename(v, seen, taken)),
-            Value::Array(arr) => arr.iter_mut().for_each(|v| rename(v, seen, taken)),
+            Value::Object(obj) => obj
+                .values_mut()
+                .for_each(|v| rename(v, named, given, taken)),
+            Value::Array(arr) => arr.iter_mut().for_each(|v| rename(v, named, given, taken)),
             _ => {}
         }
     }
 
     let mut taken = HashSet::new();
-    avro_schema
-        .iter()
-        .for_each(|t| collect_names(t, &mut taken));
-    let mut seen = Seen::new();
-    avro_schema
-        .iter_mut()
-        .for_each(|t| rename(t, &mut seen, &mut taken));
+    let mut named = Vec::new();
+    {
+        let mut ids = ShapeIds::default();
+        for t in avro_schema.iter() {
+            survey(t, false, &mut ids, &mut named, &mut taken);
+        }
+    }
+    let mut given = Given::new();
+    let mut named = named.iter();
+    for t in avro_schema.iter_mut() {
+        rename(t, &mut named, &mut given, &mut taken);
+    }
 }
 
 /// Remove the converter's bookkeeping keys from every type in an Avro schema.
