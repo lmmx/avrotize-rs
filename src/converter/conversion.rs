@@ -10,6 +10,8 @@ mod innermod {
     };
     use crate::converter::types::json_schema_primitive_to_avro_type;
     use crate::converter::unions::union_members;
+
+    use super::refs::{expand_once, is_definition_ref, recursive_ref};
     use crate::converter::utils::{merge_dependencies_into_parent, merge_description_into_doc};
     use serde_json::{json, Value};
 
@@ -124,16 +126,19 @@ mod innermod {
 
             if let Some(ptr) = ref_str.strip_prefix('#') {
                 if let Some(resolved) = json_schema.pointer(ptr) {
-                    return json_schema_object_to_avro_record(
-                        name,
-                        resolved,
-                        namespace,
-                        utility_namespace,
-                        json_schema,
-                        base_uri,
-                        avro_schema,
-                        record_stack,
-                    );
+                    return expand_once(ref_str, || {
+                        json_schema_object_to_avro_record(
+                            name,
+                            resolved,
+                            namespace,
+                            utility_namespace,
+                            json_schema,
+                            base_uri,
+                            avro_schema,
+                            record_stack,
+                        )
+                    })
+                    .unwrap_or_else(|| recursive_ref(ref_str));
                 }
             }
 
@@ -334,16 +339,19 @@ mod innermod {
                                 Value::String(ref_str.to_string())
                             } else if let Some(ptr) = ref_str.strip_prefix('#') {
                                 if let Some(resolved) = json_schema.pointer(ptr) {
-                                    json_schema_object_to_avro_record(
-                                        field_name,
-                                        resolved,
-                                        &effective_namespace,
-                                        utility_namespace,
-                                        json_schema,
-                                        base_uri,
-                                        avro_schema,
-                                        record_stack,
-                                    )
+                                    expand_once(ref_str, || {
+                                        json_schema_object_to_avro_record(
+                                            field_name,
+                                            resolved,
+                                            &effective_namespace,
+                                            utility_namespace,
+                                            json_schema,
+                                            base_uri,
+                                            avro_schema,
+                                            record_stack,
+                                        )
+                                    })
+                                    .unwrap_or_else(|| recursive_ref(ref_str))
                                 } else {
                                     json!("string")
                                 }
@@ -474,17 +482,6 @@ mod innermod {
         avro_record
     }
 
-    /// Whether `ref_str` points at an entry of `$defs`, e.g. `#/$defs/address`.
-    ///
-    /// Conversion leaves such a reference as it is; `jsons_to_avro` replaces it with
-    /// the definition's registered name, or with its type for a definition that is not
-    /// a named type.
-    pub(crate) fn is_definition_ref(ref_str: &str) -> bool {
-        ref_str
-            .strip_prefix("#/$defs/")
-            .is_some_and(|name| !name.is_empty() && !name.contains('/'))
-    }
-
     /// The Avro type of a non-string `const` value, mapped as its JSON type would be.
     fn const_type(value: &Value) -> Option<&'static str> {
         match value {
@@ -538,19 +535,22 @@ mod innermod {
                         .strip_prefix('#')
                         .and_then(|p| json_schema.pointer(p))
                     {
-                        return json_type_to_avro_type(
-                            resolved,
-                            record_name,
-                            field_name,
-                            namespace,
-                            utility_namespace,
-                            dependencies,
-                            json_schema,
-                            base_uri,
-                            avro_schema,
-                            record_stack,
-                            recursion_depth + 1,
-                        );
+                        return expand_once(ref_str, || {
+                            json_type_to_avro_type(
+                                resolved,
+                                record_name,
+                                field_name,
+                                namespace,
+                                utility_namespace,
+                                dependencies,
+                                json_schema,
+                                base_uri,
+                                avro_schema,
+                                record_stack,
+                                recursion_depth + 1,
+                            )
+                        })
+                        .unwrap_or_else(|| recursive_ref(ref_str));
                     }
                     eprintln!("WARN: external $ref not supported: {}", ref_str);
                     return json!("string");
@@ -806,3 +806,65 @@ mod innermod {
     }
 }
 pub use innermod::*;
+
+/// Reference helpers, outside `innermod`: the `trace` feature instruments every function
+/// there, which needs `Debug` arguments, and `expand_once` takes a closure.
+mod refs {
+    use crate::common::generic::generic_type;
+    use serde_json::Value;
+
+    /// Whether `ref_str` points at an entry of `$defs`, e.g. `#/$defs/address`.
+    ///
+    /// Conversion leaves such a reference as it is; `jsons_to_avro` replaces it with
+    /// the definition's registered name, or with its type for a definition that is not
+    /// a named type.
+    pub(crate) fn is_definition_ref(ref_str: &str) -> bool {
+        ref_str
+            .strip_prefix("#/$defs/")
+            .is_some_and(|name| !name.is_empty() && !name.contains('/'))
+    }
+
+    /// Whether `ref_str` points at an entry of `definitions` or `$defs`.
+    pub(crate) fn is_any_definition_ref(ref_str: &str) -> bool {
+        is_definition_ref(ref_str)
+            || ref_str
+                .strip_prefix("#/definitions/")
+                .is_some_and(|name| !name.is_empty() && !name.contains('/'))
+    }
+
+    thread_local! {
+        /// The pointer references being expanded inline on this thread, outermost first.
+        static EXPANDING: std::cell::RefCell<Vec<String>> =
+            const { std::cell::RefCell::new(Vec::new()) };
+    }
+
+    /// Run `expand` with `ref_str` marked as being expanded, or return `None` if it
+    /// already is: expanding it again would recurse without end.
+    pub(crate) fn expand_once<T>(ref_str: &str, expand: impl FnOnce() -> T) -> Option<T> {
+        struct Done;
+        impl Drop for Done {
+            fn drop(&mut self) {
+                EXPANDING.with(|e| e.borrow_mut().pop());
+            }
+        }
+        if EXPANDING.with(|e| e.borrow().iter().any(|r| r == ref_str)) {
+            return None;
+        }
+        EXPANDING.with(|e| e.borrow_mut().push(ref_str.to_string()));
+        let _done = Done;
+        Some(expand())
+    }
+
+    /// The type for a reference met again while it is being expanded: a reference to
+    /// the definition, which jsons_to_avro resolves to its registered name, or the
+    /// generic type when the reference points elsewhere.
+    pub(crate) fn recursive_ref(ref_str: &str) -> Value {
+        if is_any_definition_ref(ref_str) {
+            Value::String(ref_str.to_string())
+        } else {
+            Value::Array(generic_type())
+        }
+    }
+}
+
+pub(crate) use refs::{expand_once, is_any_definition_ref};
