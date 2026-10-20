@@ -677,3 +677,22 @@ parsers reject. Found while reducing a fuzz case by hand.
 is already a valid namespace is unchanged, which covers every fixture.
 
 **Compatibility.** Only namespaces that were invalid change.
+
+## 2026-10-20 · A repeated named type in a schema list is defined once (`fix/list-repeated-types`)
+
+**Defect.** With `definitions` or `$defs`, even an unused one, `jsons_to_avro` returns
+a list. `adjust_resolved_dependencies` keeps the first definition of each full name and
+makes later ones references. It ran only on single records, and on records inlined to
+break a cycle. Two identical nested types in a list were therefore both defined, and
+parsers reject the schema: the same record under two `oneOf` branches is enough. The
+same schema without `$defs` was fine.
+
+The bug is on the stack's base too. It surfaced once the next entry gave composition
+branches their shared properties: 16 of 1,500 fuzzed schemas were invalid.
+
+**Change.** The pass runs over the whole list, in order. A top-level item it turns
+into a reference was defined in an earlier item, and is dropped.
+
+**Validation.** Every output that changed was invalid before. On 2,000 standard and
+1,500 composition-heavy fuzzed schemas, none changed, so the fix rests on the reduced
+regression test and on the next entry's fuzz run, which is clean on top of it.
