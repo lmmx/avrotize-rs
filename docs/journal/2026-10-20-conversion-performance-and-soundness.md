@@ -318,3 +318,67 @@ on wide, 95× on narrow, 40× on deep, 25× on genson.
 
 Nesting depth no longer multiplies cost. All five shapes now scale roughly linearly
 with their size.
+
+## Soundness method
+
+The performance stack keeps the output byte-identical. The entries below change it on
+purpose, one defect per PR, and each one says what changes for users.
+
+**What "sound" means here.** For a JSON Schema and its Avro output:
+
+1. the converter exits cleanly;
+2. the output is valid Avro, both to fastavro and to `apache-avro` (Rust), which also
+   checks names strictly;
+3. a JSON instance that `jsonschema` accepts under the JSON Schema can be written with
+   the Avro schema without loss. Every key lands in a record field or a map, and every
+   value matches its type, a union branch or an enum symbol.
+
+**Fuzzer.** `tools/soundness/run.sh <n> <seed>` generates random schemas covering the
+#8 checklist:
+
+- nested objects, arrays, `anyOf`/`oneOf`/`allOf`, `$defs` references;
+- enums, consts, type lists, formats;
+- `additionalProperties` (true, false or a schema), `patternProperties`, and
+  min/maxProperties.
+
+For each schema it draws instances and reports the first failure, as a tally of kinds.
+`reduce.py` shrinks a failing schema to a minimal one. Each defect below was reduced
+this way, and each fix comes with a reduced regression test in `tests/soundness.rs`.
+
+The strict parser runs as its own crate. `apache-avro` can't be a dev-dependency: it
+enables serde_json's `arbitrary_precision`, which changes how this crate's numbers
+parse, and it needs a newer Rust than the MSRV.
+
+**Checker.** `tests/common` checks every test's output against the rules the converter
+broke:
+
+- each full name is defined once, and every reference is defined (the fuzzer's
+  parsers also check that the definition comes first);
+- no union directly in a union, and no two members of the same type;
+- unique, present field names and enum symbols;
+- a named `fixed`.
+
+**Differential.** For each fix, a script converts 1,500–3,000 random schemas with the
+branch and its base, and checks that every changed output had the defect being fixed.
+Changes anywhere else count as regressions.
+
+## 2026-10-20 · Formats without a logical type keep their type (`fix/unknown-formats`)
+
+**Defect.** `json_schema_primitive_to_avro_type` returned an empty union for any
+format it didn't map: email, uri, hostname, int32, double and the rest. That type
+holds nothing.
+
+- As a field type it gave `[]`, or `["null", []]` (a union nested in a union).
+- In a `oneOf`, the empty branch was spliced away, silently dropping that alternative.
+- The `int64` → `long` mapping was dead code.
+
+**Change.** A format only annotates its value, so the primitive type stays. Python
+avrotize 3.x does the same; 2.x had this bug, which is why the `email` fixture's
+reference output is `[]`. A primitive root still converts to no type at all, as in
+Python.
+
+**Validation.** Every changed output in the differential held an empty union or had
+an unmapped format.
+
+**Compatibility.** A field typed `[]` could never be written, so no working pipeline
+depends on the old output. An `int64` integer is now a `long`.
