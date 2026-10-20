@@ -108,21 +108,28 @@ pub fn jsons_to_avro(
         )
     } else if !avro_schema.is_empty() {
         if json_schema.get("definitions").is_none() && json_schema.get("$defs").is_none() {
-            let mut recursion_stack = Vec::new();
-            // Search the list in place: it is moved into an array value and back.
-            let all = Value::Array(std::mem::take(&mut avro_schema));
-            let root = find_schema_node(
-                &|t: &Value| {
-                    t.get("name").and_then(|n| n.as_str()) == Some(&root_name)
-                        && t.get("namespace").and_then(|n| n.as_str()) == Some(&root_namespace)
-                },
-                &all,
-                &mut recursion_stack,
-            );
-            let Value::Array(items) = all else {
-                unreachable!("moved in as an array")
+            let is_root = |t: &Value| {
+                t.get("name").and_then(|n| n.as_str()) == Some(&root_name)
+                    && t.get("namespace").and_then(|n| n.as_str()) == Some(&root_namespace)
             };
-            avro_schema = items;
+            let root = if avro_schema
+                .first()
+                .is_some_and(|t| is_root(t) && !depends_on_itself(t))
+            {
+                // The search below would return a copy of the first item without looking
+                // further, and inlining never looks the root up, so move it out instead.
+                Some(avro_schema.remove(0))
+            } else {
+                let mut recursion_stack = Vec::new();
+                // Search the list in place: it is moved into an array value and back.
+                let all = Value::Array(std::mem::take(&mut avro_schema));
+                let root = find_schema_node(&is_root, &all, &mut recursion_stack);
+                let Value::Array(items) = all else {
+                    unreachable!("moved in as an array")
+                };
+                avro_schema = items;
+                root
+            };
             if let Some(mut root_copy) = root {
                 inline_dependencies_of(&mut avro_schema, &mut root_copy);
                 strip_bookkeeping(&mut root_copy);
@@ -135,6 +142,23 @@ pub fn jsons_to_avro(
     };
     strip_bookkeeping(&mut avro);
     avro
+}
+
+/// Whether `record` lists itself among its dependencies, by name or full name, as
+/// `inline_dependencies_of` would look it up.
+fn depends_on_itself(record: &Value) -> bool {
+    let Some(deps) = record.get("dependencies").and_then(|d| d.as_array()) else {
+        return false;
+    };
+    let name = record.get("name").and_then(|n| n.as_str());
+    let full_name = record
+        .get("namespace")
+        .and_then(|n| n.as_str())
+        .zip(name)
+        .map(|(ns, name)| format!("{ns}.{name}"));
+    deps.iter()
+        .filter_map(|d| d.as_str())
+        .any(|d| Some(d) == name || Some(d) == full_name.as_deref())
 }
 
 #[cfg_attr(feature = "trace", crustrace::instrument)]
