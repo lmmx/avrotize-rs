@@ -1,0 +1,106 @@
+---
+source: tests/cli.rs
+expression: json
+---
+{
+  "type": "record",
+  "name": "document",
+  "namespace": "object_maxproperties",
+  "fields": [
+    {
+      "name": "document",
+      "type": {
+        "type": "map",
+        "values": [
+          "null",
+          "boolean",
+          "int",
+          "long",
+          "float",
+          "double",
+          "bytes",
+          "string",
+          {
+            "type": "array",
+            "items": [
+              "null",
+              "boolean",
+              "int",
+              "long",
+              "float",
+              "double",
+              "bytes",
+              "string",
+              {
+                "type": "array",
+                "items": [
+                  "null",
+                  "boolean",
+                  "int",
+                  "long",
+                  "float",
+                  "double",
+                  "bytes",
+                  "string"
+                ]
+              },
+              {
+                "type": "map",
+                "values": [
+                  "null",
+                  "boolean",
+                  "int",
+                  "long",
+                  "float",
+                  "double",
+                  "bytes",
+                  "string"
+                ]
+              }
+            ]
+          },
+          {
+            "type": "map",
+            "values": [
+              "null",
+              "boolean",
+              "int",
+              "long",
+              "float",
+              "double",
+              "bytes",
+              "string",
+              {
+                "type": "array",
+                "items": [
+                  "null",
+                  "boolean",
+                  "int",
+                  "long",
+                  "float",
+                  "double",
+                  "bytes",
+                  "string"
+                ]
+              },
+              {
+                "type": "map",
+                "values": [
+                  "null",
+                  "boolean",
+                  "int",
+                  "long",
+                  "float",
+                  "double",
+                  "bytes",
+                  "string"
+                ]
+              }
+            ]
+          }
+        ],
+        "name": "document"
+      }
+    }
+  ]
+}

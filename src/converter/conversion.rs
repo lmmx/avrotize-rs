@@ -223,6 +223,11 @@ mod innermod {
             }
         }
 
+        // An object that declares no properties holds any (#12)
+        if declares_no_properties(json_object) {
+            return create_map_type(Value::Array(generic_type()), None);
+        }
+
         // Derive a base record name once, from title or name
         let title = json_object.get("title").and_then(|t| t.as_str());
         let raw_name = if !name.is_empty() {
@@ -486,6 +491,17 @@ mod innermod {
         avro_record
     }
 
+    /// Whether `json_object` is an object schema with none of `properties`,
+    /// `patternProperties` and `additionalProperties`: it allows any properties, so a
+    /// record (which would have no fields) would drop them all. `minProperties` and
+    /// `maxProperties` don't change that, and Avro can't express them.
+    fn declares_no_properties(json_object: &Value) -> bool {
+        json_object.get("type").and_then(Value::as_str) == Some("object")
+            && ["properties", "patternProperties", "additionalProperties"]
+                .iter()
+                .all(|k| json_object.get(*k).is_none())
+    }
+
     /// The Avro type of a non-string `const` value, mapped as its JSON type would be.
     fn const_type(value: &Value) -> Option<&'static str> {
         match value {
@@ -715,6 +731,11 @@ mod innermod {
 
             // Handle objects
             if json_object_type == Some(Value::String("object".into())) {
+                // An object that declares no properties holds any (#12)
+                if declares_no_properties(json_type) {
+                    return create_map_type(Value::Array(generic_type()), Some(field_name));
+                }
+
                 // Special-case: plain object with only additionalProperties → treat as a map
                 if obj.get("properties").is_none() {
                     if let Some(additional) = obj.get("additionalProperties") {

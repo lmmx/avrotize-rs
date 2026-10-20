@@ -556,3 +556,28 @@ Python avrotize already do.
 
 **Compatibility: this changes valid output.** The map's values go from `string` to the
 generic union, which still includes `string`.
+
+## 2026-10-20 · Objects without properties hold any properties (`fix/object-without-properties`, #12)
+
+**Defect.** #12 reproduces on the stack's base. Any object schema with none of
+`properties`, `patternProperties` and `additionalProperties` became a record with no
+fields, which drops every key of the data. That includes `{"type": "object"}`, and
+the #12 fixtures, which have only `minProperties` or `maxProperties`.
+
+At the root, the empty record was also named like its wrapper, and #30 then renamed it
+`document_1`. That is the snapshot change #30's review classified as a pre-existing
+defect.
+
+**Change.** Such an object becomes a map of the generic type, as JSON Schema allows any
+properties there, and as Python avrotize does. An object with
+`additionalProperties: false` (which must be empty), or with an explicit
+`properties: {}`, stays a record, as in Python. `minProperties` and `maxProperties`
+have no Avro equivalent and are dropped, as before.
+
+The `object_maxproperties` and `object_minproperties` fixtures, which the CLI tests
+skipped until now, convert exactly to their Python reference output. Their snapshots
+are added, with empty diffs.
+
+**Compatibility: this changes valid output.** genson infers `{"type": "object"}` for
+an empty JSON object, so a field that was an empty record is now a map. Data with keys
+there could not be written before.
