@@ -804,3 +804,50 @@ compatibility decision first.
 **Seen in passing, not fixed.** The converter records primitive type names (`"null"`)
 as dependencies. That is harmless, but it is why the `$defs` fix stays out of the
 dependency lists.
+
+## 2026-10-20 · Repeated union members, found by kind and hash (`perf/union-member-hash`)
+
+**Found during release preparation.** Re-measuring the final tip (#55) against the
+performance stack (#38) showed collision-heavy schemas had lost most of their gain:
+
+| shape | #38 Ir | #55 Ir |
+|---|---|---|
+| collide 200 | 35.6M | 222M |
+| collide 1000 | 193M | **4,839M** (358 ms; 0.1.2 is 8,263M) |
+
+The other shapes moved by 8–16%, which is the cost of the correctness passes.
+
+**Cause.** `union_members` (#40) checked each new member against all earlier ones with
+a deep `Value` comparison. A union of n same-named records costs n²/2 of them, and each
+`IndexMap` comparison hashes its keys: 119,400 deep comparisons for collide 200.
+
+**Change.** Equal values share their kind, and an object's `type` and `name`. So a
+member is only compared with members of the same kind, and of those only with ones
+whose hash matches. The hash ignores key order, as `Value` equality does, and treats
+`-0.0` and `0.0` alike. A hash match is still confirmed by the exact comparison. Kinds
+are hashed once per member, and value hashes only when first needed.
+
+**Negative results on the way.**
+
+- **Hashing every member up front.** This fixed collide (4,839M → 280M), but made
+  nesting quadratic instead. A nested `["null", record]` re-hashed the record's whole
+  subtree at every level: narrow 200 went from 17M to 244M, and deep 30 from 77M to
+  240M.
+- **Computing each earlier member's kind on every push.** This was lazy, but it was
+  still n² `IndexMap` lookups of `type` and `name`, each a SipHash: collide 1000 cost
+  2,150M.
+
+**Results** (output byte-identical on 2,000 standard and 2,000 composition-heavy
+schemas):
+
+| shape | #55 | this | #38 | 0.1.2 |
+|---|---|---|---|---|
+| collide 1000 | 4,839M | **357M** | 193M | 8,263M |
+| collide 200 | 222M | **57.0M** | 35.6M | 454M |
+| genson 1000 | 129M | 137M | 118M | 396M |
+| wide 2000 | 106M | 109M | 98.6M | 497M |
+| deep 30 | 77.0M | 79.5M | 66.2M | 1,484M |
+| narrow 200 | 17.1M | 17.5M | 15.4M | 1,610M |
+
+Against 0.1.2, the release is 23× faster on collide 1000, 8× on collide 200, 92× on
+narrow, 19× on deep, 4.6× on wide and 2.9× on genson.
