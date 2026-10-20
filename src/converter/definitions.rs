@@ -159,8 +159,9 @@ mod innermod {
                 .unwrap_or(namespace);
 
             if is_standalone_avro_type(&avro_item) && !is_empty_type(&avro_item) {
-                register_type(avro_schema, avro_item.clone());
-                return Some((ns.to_string(), name.to_string()));
+                let registered = (ns.to_string(), name.to_string());
+                register_type(avro_schema, avro_item);
+                return Some(registered);
             }
 
             if is_root {

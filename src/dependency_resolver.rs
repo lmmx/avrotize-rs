@@ -1,83 +1,21 @@
 use serde_json::Value;
+use std::collections::HashSet;
 
 /// Recursively adjust resolved dependencies so records are defined before use.
+///
+/// The first definition of each record or enum full name stays where it is, and
+/// every later one is replaced by a reference to that name.
 pub fn adjust_resolved_dependencies(avro_schema: &mut Value) {
     struct TreeWalker {
         found_something: bool,
     }
 
     impl TreeWalker {
-        fn new() -> Self {
-            TreeWalker {
-                found_something: true,
-            }
-        }
-
-        fn swap_record_dependencies_above(
-            &mut self,
-            current_node: &mut Value,
-            record: &Value,
-        ) -> Option<String> {
-            if let Some(obj) = current_node.as_object_mut() {
-                if obj.get("name") == record.get("name")
-                    && obj.get("namespace") == record.get("namespace")
-                    && obj.get("type") == record.get("type")
-                {
-                    return None; // reached the record itself, stop
-                }
-                for (k, v) in obj.iter_mut() {
-                    if ["dependencies", "unmerged_types"].contains(&k.as_str()) {
-                        continue;
-                    }
-                    if v.is_object() || v.is_array() {
-                        return self.swap_record_dependencies_above(v, record);
-                    } else if v.is_string() && ["type", "values", "items"].contains(&k.as_str()) {
-                        let qname = format!(
-                            "{}.{}",
-                            record
-                                .get("namespace")
-                                .and_then(|n| n.as_str())
-                                .unwrap_or(""),
-                            record.get("name").unwrap().as_str().unwrap()
-                        );
-                        if v.as_str() == Some(&qname) {
-                            self.found_something = true;
-                            *v = record.clone();
-                            return Some(qname);
-                        }
-                    }
-                }
-            } else if let Some(arr) = current_node.as_array_mut() {
-                for item in arr.iter_mut() {
-                    if item.is_object() || item.is_array() {
-                        return self.swap_record_dependencies_above(item, record);
-                    } else if let Some(s) = item.as_str() {
-                        let qname = format!(
-                            "{}.{}",
-                            record
-                                .get("namespace")
-                                .and_then(|n| n.as_str())
-                                .unwrap_or(""),
-                            record.get("name").unwrap().as_str().unwrap()
-                        );
-                        if s == qname {
-                            self.found_something = true;
-                            *item = record.clone();
-                            return Some(qname);
-                        }
-                    }
-                }
-            }
-            None
-        }
-
         fn walk_schema(
             &mut self,
             current_node: &mut Value,
-            record_list: &mut Vec<String>,
+            record_list: &mut HashSet<String>,
         ) -> Option<String> {
-            let mut found_record: Option<String> = None;
-
             if let Some(obj) = current_node.as_object() {
                 if let Some(t) = obj.get("type").and_then(|v| v.as_str()) {
                     if t == "record" || t == "enum" {
@@ -90,26 +28,17 @@ pub fn adjust_resolved_dependencies(avro_schema: &mut Value) {
                             self.found_something = true;
                             return Some(qname);
                         }
-                        record_list.push(qname.clone());
-
-                        // FIX: clone current_node (record) and pass to swap_record_dependencies_above
-                        let record_clone = current_node.clone();
-                        if let Some(q) =
-                            self.swap_record_dependencies_above(current_node, &record_clone)
-                        {
-                            found_record = Some(q);
-                        }
+                        record_list.insert(qname);
                     }
                 }
             }
 
-            // Now borrow mutably for recursion
             if let Some(obj) = current_node.as_object_mut() {
                 for v in obj.values_mut() {
                     if v.is_object() || v.is_array() {
                         if let Some(qname) = self.walk_schema(v, record_list) {
                             self.found_something = true;
-                            *v = Value::String(qname.clone());
+                            *v = Value::String(qname);
                         }
                     }
                 }
@@ -118,21 +47,23 @@ pub fn adjust_resolved_dependencies(avro_schema: &mut Value) {
                     if item.is_object() || item.is_array() {
                         if let Some(qname) = self.walk_schema(item, record_list) {
                             self.found_something = true;
-                            *item = Value::String(qname.clone());
+                            *item = Value::String(qname);
                         }
                     }
                 }
                 arr.dedup();
             }
 
-            found_record
+            None
         }
     }
 
-    let mut walker = TreeWalker::new();
+    let mut walker = TreeWalker {
+        found_something: true,
+    };
     loop {
         walker.found_something = false;
-        walker.walk_schema(avro_schema, &mut Vec::new());
+        walker.walk_schema(avro_schema, &mut HashSet::new());
         if !walker.found_something {
             break;
         }
@@ -226,7 +157,7 @@ pub fn sort_messages_by_dependencies(avro_schema: &mut Vec<Value>) -> Vec<Value>
                 .position(|r| r.get("dependencies").is_some())
             {
                 let mut record = avro_schema.remove(idx);
-                inline_dependencies_of(&mut sorted_messages.clone(), &mut record);
+                inline_dependencies_of(&mut sorted_messages, &mut record);
                 sorted_messages.push(record);
             } else {
                 eprintln!("WARNING: Circular dependencies remain unresolved.");
@@ -235,7 +166,6 @@ pub fn sort_messages_by_dependencies(avro_schema: &mut Vec<Value>) -> Vec<Value>
         }
     }
 
-    adjust_resolved_dependencies(&mut Value::Array(sorted_messages.clone()));
     sorted_messages
 }
 

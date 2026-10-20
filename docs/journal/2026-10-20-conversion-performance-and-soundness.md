@@ -154,3 +154,48 @@ key order. `generic_type()` is now built once and cloned, rather than rebuilt wi
 | collide 200 | 237M → 198M |
 | wide 2000 | 464M → 423M |
 | genson 1000 | 394M → 351M |
+
+## 2026-10-20 · Clones nothing used (`perf/resolver-clones`)
+
+**Cause.** Whole-schema copies made up about 60% of `wide 2000`'s bytes. A full copy of
+the schema made at each of these sites:
+
+- `find_schema_node` called on a clone of the list;
+- the found root cloned again;
+- the list cloned once more for `inline_dependencies_of`;
+- `process_definition` cloning the item it registers.
+
+The rest came from `adjust_resolved_dependencies`, which cloned **every record's
+subtree** to call `swap_record_dependencies_above(record, &its_own_clone)`.
+
+**Change**, each one dead or redundant work:
+
+- **The swap call.** Its first check compares the node with its own clone, which always
+  matches, so it returns `None` without changing anything. The call, its clone and the
+  method are removed.
+- **The record list** was only searched with `contains`, so it is now a `HashSet`, not a
+  `Vec`.
+- **`sort_messages_by_dependencies`** ended by adjusting a temporary clone of its result
+  and discarding it. Removed.
+- **The `jsons_to_avro` copies** are gone: it searches the list in place, and passes the
+  list itself to `inline_dependencies_of`, which never modifies it.
+- **`process_definition`** moves the registered item instead of cloning it.
+
+**Results**: output unchanged, including the library differential with `$defs` in
+inline and split mode, which is the path `sort_messages_by_dependencies` takes.
+
+| shape | Ir before → after | peak heap |
+|---|---|---|
+| wide 2000 | 423M → 222M (−48%) | 31.1 → **11.4 MB** |
+| narrow 200 | 454M → 118M (−74%) | 4.6 → 2.0 MB |
+| deep 30 | 526M → 212M (−60%) | 21.4 → 8.0 MB |
+| collide 200 | 198M → 149M | 7.9 → 3.0 MB |
+| genson 1000 | 351M → 204M (−42%) | 7.6 → 7.6 MB |
+
+**Open question, logged for the soundness work.** The discarded adjust is a porting
+divergence. Python avrotize's `sort_messages_by_dependencies` calls
+`adjust_resolved_dependencies(sorted_messages)` on the list it returns, and a Python
+list is mutated in place. The Rust port adjusts a clone. So in `$defs` and split mode,
+Rust output may keep repeated inline definitions that Python would turn into
+references. Restoring the adjustment would change output, so it is not part of a
+performance PR.

@@ -109,21 +109,27 @@ pub fn jsons_to_avro(
     } else if !avro_schema.is_empty() {
         if json_schema.get("definitions").is_none() && json_schema.get("$defs").is_none() {
             let mut recursion_stack = Vec::new();
-            if let Some(root) = find_schema_node(
+            // Search the list in place: it is moved into an array value and back.
+            let all = Value::Array(std::mem::take(&mut avro_schema));
+            let root = find_schema_node(
                 &|t: &Value| {
                     t.get("name").and_then(|n| n.as_str()) == Some(&root_name)
                         && t.get("namespace").and_then(|n| n.as_str()) == Some(&root_namespace)
                 },
-                &Value::Array(avro_schema.clone()),
+                &all,
                 &mut recursion_stack,
-            ) {
-                let mut root_copy = root.clone();
-                inline_dependencies_of(&mut avro_schema.clone(), &mut root_copy);
+            );
+            let Value::Array(items) = all else {
+                unreachable!("moved in as an array")
+            };
+            avro_schema = items;
+            if let Some(mut root_copy) = root {
+                inline_dependencies_of(&mut avro_schema, &mut root_copy);
                 strip_bookkeeping(&mut root_copy);
                 return root_copy;
             }
         }
-        Value::Array(sort_messages_by_dependencies(&mut avro_schema.clone()))
+        Value::Array(sort_messages_by_dependencies(&mut avro_schema))
     } else {
         Value::Array(Vec::new())
     };
