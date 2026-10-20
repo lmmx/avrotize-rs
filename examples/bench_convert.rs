@@ -12,7 +12,9 @@
 //! - `genson`: `size` random genson-like schemas (seeded), converted one after another
 //! - `file:<path>`: a JSON Schema read from disk (`size` is ignored)
 //!
-//! Prints the median and minimum wall time over `runs` and a hash of the output,
+//! With `runs` of 0 it only generates the schemas, as a baseline for instruction or
+//! allocation counts. Otherwise it prints the median and minimum wall time over
+//! `runs` and a hash of the output,
 //! which must not change between versions unless the output does. Set
 //! `BENCH_NO_HASH=1` to skip the hash, e.g. when counting instructions or
 //! allocations of the conversion alone. Only the public API is used, so the same
@@ -149,6 +151,11 @@ fn main() {
         if run == 0 && hash_output {
             outputs.iter().for_each(|o| o.to_string().hash(&mut hasher));
         }
+    }
+    if runs == 0 {
+        // Generate only: a baseline to subtract when counting a conversion's own cost.
+        println!("{shape} {size}: generated {} schemas", schemas.len());
+        return;
     }
     times.sort_by(|a, b| a.total_cmp(b));
     println!(
