@@ -581,3 +581,12 @@ are added, with empty diffs.
 **Compatibility: this changes valid output.** genson infers `{"type": "object"}` for
 an empty JSON object, so a field that was an empty record is now a map. Data with keys
 there could not be written before.
+
+## 2026-10-20 · Unions stay well formed after a reference resolves (`fix/refs-union-members`)
+
+**Defect.** `union_members` runs during conversion, while a `$defs` reference is still
+a marker. A reference that resolved to an inlined type could then repeat another
+member: `anyOf [{$ref: Str}, {type: string}]` gave two strings. It could also be a union
+itself.
+
+**Change.** Each union in which a reference was resolved is normalized again.

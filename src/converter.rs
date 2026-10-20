@@ -180,6 +180,7 @@ fn resolve_definition_refs(
     base_uri: &str,
 ) {
     use conversion::{is_any_definition_ref as is_definition_ref, json_type_to_avro_type};
+    use unions::union_members;
 
     /// The `$defs` references in `value`'s type positions (not in const or default data).
     fn collect(value: &Value, refs: &mut HashSet<String>) {
@@ -238,11 +239,20 @@ fn resolve_definition_refs(
                     }
                 }
                 Value::Array(arr) => {
+                    let mut resolved_member = false;
                     for v in arr.iter_mut() {
                         match v.as_str() {
-                            Some(r) if is_definition_ref(r) => *v = self.resolve(r),
+                            Some(r) if is_definition_ref(r) => {
+                                *v = self.resolve(r);
+                                resolved_member = true;
+                            }
                             _ => self.replace(v),
                         }
+                    }
+                    // A reference is only ever a union's member here, and what it became
+                    // may repeat another member or be a union itself.
+                    if resolved_member {
+                        *arr = union_members(std::mem::take(arr));
                     }
                 }
                 _ => {}
