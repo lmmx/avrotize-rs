@@ -431,7 +431,7 @@ mod innermod {
         if !pattern_types.is_empty() {
             let pattern_map = object([
                 ("type", "map".into()),
-                ("values", Value::Array(pattern_types)),
+                ("values", Value::Array(union_members(pattern_types))),
                 ("name", record_name.as_str().into()),
             ]);
             let fields = avro_record["fields"].as_array_mut().unwrap();
@@ -565,11 +565,37 @@ mod innermod {
 
             // Handle list-of-types (e.g. "type": ["null","string"])
             if let Some(Value::Array(type_list)) = &json_object_type {
+                let others: Vec<Value> =
+                    type_list.iter().filter(|t| *t != "null").cloned().collect();
                 if type_list.len() == 1 {
                     json_object_type = Some(type_list[0].clone());
-                } else if type_list.len() == 2 && type_list.iter().any(|t| t == "null") {
-                    let other = type_list.iter().find(|t| *t != "null").unwrap().clone();
-                    json_object_type = Some(other);
+                } else if others.len() < type_list.len() && !others.is_empty() {
+                    // The list admits null: convert the other types, then add null to them.
+                    let mut without_null = obj.clone();
+                    let rest = match <[Value; 1]>::try_from(others) {
+                        Ok([single]) => single,
+                        Err(others) => Value::Array(others),
+                    };
+                    without_null.insert("type".to_string(), rest);
+                    let inner = json_type_to_avro_type(
+                        &Value::Object(without_null),
+                        record_name,
+                        field_name,
+                        namespace,
+                        utility_namespace,
+                        dependencies,
+                        json_schema,
+                        base_uri,
+                        avro_schema,
+                        record_stack,
+                        recursion_depth + 1,
+                    );
+                    let mut members = vec![Value::from("null")];
+                    match inner {
+                        Value::Array(union) => members.extend(union),
+                        other => members.push(other),
+                    }
+                    return Value::Array(union_members(members));
                 } else {
                     let mut one_of = vec![];
                     for t in type_list {

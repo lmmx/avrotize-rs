@@ -346,3 +346,48 @@ fn data_shaped_like_a_type_is_not_renamed() {
     // and deduplicated adjacent array items in data: [1, 1, 2] became [1, 2].
     assert_eq!(avro["fields"][2]["const"], json!([1, 1, 2]));
 }
+
+#[test]
+fn a_nullable_type_list_keeps_null_where_it_is_required() {
+    // ["boolean", "null"] lost its null unless the field was optional, which added one
+    // back: a required field, an array item or a union branch couldn't hold null.
+    let schema = json!({"type": "object", "required": ["n", "m", "a", "u"], "properties": {
+        "n": {"type": ["boolean", "null"]},
+        "m": {"type": ["string", "integer", "null"]},
+        "a": {"type": "array", "items": {"type": ["string", "null"]}},
+        "u": {"anyOf": [{"type": ["boolean", "null"]}, {"type": "string"}]},
+        "o": {"type": ["null", "integer"]}}});
+    let avro = convert(&schema);
+    let types: Vec<&Value> = avro["fields"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|f| &f["type"])
+        .collect();
+    assert_eq!(
+        types,
+        [
+            &json!(["null", "boolean"]),
+            &json!(["null", "string", "int"]),
+            &json!({"type": "array", "items": ["null", "string"]}),
+            &json!(["null", "boolean", "string"]),
+            // An optional field already gained null this way: unchanged.
+            &json!(["null", "int"]),
+        ]
+    );
+    assert_fits(
+        &avro,
+        json!({"n": null, "m": null, "a": ["x", null], "u": null, "o": null}),
+    );
+}
+
+#[test]
+fn a_union_pattern_type_is_not_nested_in_the_map_values() {
+    let schema = json!({"type": "object", "patternProperties": {
+        "^p": {"type": ["string", "null"]}, "^q": {"anyOf": [{"type": "integer"}, {"type": "boolean"}]}}});
+    let avro = convert(&schema);
+    assert_eq!(
+        avro["fields"][0]["type"]["values"],
+        json!(["null", "string", "int", "boolean"])
+    );
+}
