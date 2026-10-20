@@ -72,7 +72,11 @@ pub fn merge_json_schemas(json_schemas: &[Value], intersect: bool) -> Value {
                     obj.insert("type".to_string(), Value::Array(arr));
                 }
             }
-            merged = merge_structures(&merged, schema);
+            // The type is merged above: merging it again would see two types and give
+            // a list of both schemas, which the next schema can't be merged into.
+            let mut rest = schema.clone();
+            rest.as_object_mut().unwrap().remove("type");
+            merged = merge_structures(&merged, &rest);
         }
 
         // handle required specially
