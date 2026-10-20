@@ -507,3 +507,19 @@ suffix (`kind_1`, ...). Otherwise it is named as before.
 
 **Validation.** On 3,000 random schemas, all 29 changed outputs had a repeated field
 name.
+
+## 2026-10-20 · `const` and `default` values are data (`fix/disambiguation-skips-data`)
+
+**Defect.** Two passes treated a `const` or `default` value as part of the schema:
+
+- `disambiguate_named_types` renamed data shaped like a named type (an object with
+  `type: record` and a `name`) when its full name collided;
+- `adjust_resolved_dependencies` replaced such data with a reference when its full
+  name had been seen, and ran `Vec::dedup` on every array it walked, so a const of
+  `[1, 1, 2]` became `[1, 2]`.
+
+**Change.** Both skip `const` and `default` values, as `strip_bookkeeping` already
+did. The 0.1.2 reference copy in `tests/disambiguation.rs` gets the same one-line
+change, so it still checks everything else byte for byte.
+
+**Compatibility.** Only values that were corrupted change.
