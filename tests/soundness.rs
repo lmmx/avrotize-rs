@@ -131,3 +131,42 @@ fn arrays_in_a_union_merge_into_one_array_of_their_items() {
     );
     assert_fits(&avro, json!({"two": ["a", 1]}));
 }
+
+#[test]
+fn a_non_string_const_takes_its_value_type() {
+    // Each was an enum with no symbols, which is invalid and can hold nothing.
+    let schema = json!({"type": "object", "required": ["i", "big", "f", "b", "n", "s"],
+        "properties": {
+            "i": {"const": 7},
+            "big": {"const": 1_099_511_627_776_i64},
+            "f": {"const": 0.5},
+            "b": {"const": true},
+            "n": {"const": null},
+            "s": {"const": "x"}}});
+    let avro = convert(&schema);
+    let fields = avro["fields"].as_array().unwrap();
+    let types: Vec<&Value> = fields.iter().map(|f| &f["type"]).collect();
+    assert_eq!(
+        types[..5],
+        [
+            &json!("int"),
+            &json!("long"),
+            &json!("float"),
+            &json!("boolean"),
+            &json!("null")
+        ]
+    );
+    // A string constant is still a one-symbol enum, and every field keeps its const.
+    assert_eq!(types[5]["type"], "enum");
+    assert_eq!(fields[0]["const"], 7);
+    assert_fits(
+        &avro,
+        json!({"i": 7, "big": 1_099_511_627_776_i64, "f": 0.5, "b": true, "n": null, "s": "x"}),
+    );
+
+    // An object or array constant has no exact Avro type: the generic type holds it.
+    let schema = json!({"type": "object", "required": ["o", "a"], "properties": {
+        "o": {"const": {"k": "v"}}, "a": {"const": [1, 2]}}});
+    let avro = convert(&schema);
+    assert_fits(&avro, json!({"o": {"k": "v"}, "a": [1, 2]}));
+}
