@@ -1,8 +1,10 @@
 //! Regression tests for #28: differently shaped types that share a name, and
 //! bookkeeping keys leaking into the output.
+mod common;
+
 use avrotize::converter::jsons_to_avro;
+use common::{assert_no_bookkeeping, branch, fits, named_types, types};
 use serde_json::{json, Value};
-use std::collections::HashMap;
 
 /// `r` holds arrays of one object shape, a second object shape, or integers (#28).
 fn issue_28_schema() -> Value {
@@ -13,114 +15,6 @@ fn issue_28_schema() -> Value {
             {"type": "object", "properties": {"d": {"type": "integer"}}, "required": ["d"]},
             {"type": "integer"}]}},
         {"type": "boolean"}]}}})
-}
-
-/// Every object in `avro` that is a type, skipping `const` and `default` data.
-fn types(avro: &Value) -> Vec<&Value> {
-    let mut out = Vec::new();
-    match avro {
-        Value::Object(obj) => {
-            if obj.contains_key("type") {
-                out.push(avro);
-            }
-            for (k, v) in obj {
-                if k != "const" && k != "default" {
-                    out.extend(types(v));
-                }
-            }
-        }
-        Value::Array(arr) => arr.iter().for_each(|v| out.extend(types(v))),
-        _ => {}
-    }
-    out
-}
-
-fn assert_no_bookkeeping(avro: &Value) {
-    for t in types(avro) {
-        for key in ["dependencies", "unmerged_types"] {
-            assert!(t.get(key).is_none(), "{key} leaked into {t}");
-        }
-    }
-}
-
-/// The named types `avro` defines, by full name, checked the way an Avro parser
-/// checks them: no full name is defined twice, and every reference is defined.
-fn named_types(avro: &Value) -> HashMap<String, &Value> {
-    const PRIMITIVES: [&str; 8] = [
-        "null", "boolean", "int", "long", "float", "double", "bytes", "string",
-    ];
-    let mut defined = HashMap::new();
-    let mut referenced = Vec::new();
-    for t in types(avro) {
-        if let (Some("record" | "enum" | "fixed"), Some(name)) =
-            (t["type"].as_str(), t["name"].as_str())
-        {
-            let full = match t["namespace"].as_str() {
-                Some(ns) if !ns.is_empty() => format!("{ns}.{name}"),
-                _ => name.to_string(),
-            };
-            assert!(
-                defined.insert(full.clone(), t).is_none(),
-                "{full} is defined twice"
-            );
-        }
-        for key in ["type", "items", "values"] {
-            let refs = match &t[key] {
-                Value::Array(union) => union.iter().collect(),
-                other => vec![other],
-            };
-            referenced.extend(refs.into_iter().filter_map(Value::as_str));
-        }
-    }
-    for name in referenced {
-        let is_type_keyword = matches!(name, "record" | "enum" | "fixed" | "array" | "map");
-        assert!(
-            is_type_keyword || PRIMITIVES.contains(&name) || defined.contains_key(name),
-            "{name} is referenced but not defined"
-        );
-    }
-    defined
-}
-
-/// Whether the JSON `datum` can be written with the Avro `schema`.
-fn fits(schema: &Value, datum: &Value, names: &HashMap<String, &Value>) -> bool {
-    match schema {
-        Value::String(s) => match s.as_str() {
-            "null" => datum.is_null(),
-            "boolean" => datum.is_boolean(),
-            "int" | "long" => datum.is_i64() || datum.is_u64(),
-            "float" | "double" => datum.is_number(),
-            "string" | "bytes" => datum.is_string(),
-            name => fits(names[name], datum, names),
-        },
-        Value::Array(union) => branch(union, datum, names).is_some(),
-        Value::Object(obj) => match obj["type"].as_str() {
-            Some("record") => datum.as_object().is_some_and(|d| {
-                let fields = obj["fields"].as_array().unwrap();
-                d.keys().all(|k| fields.iter().any(|f| f["name"] == *k))
-                    && fields.iter().all(|f| {
-                        let value = d.get(f["name"].as_str().unwrap());
-                        fits(&f["type"], value.unwrap_or(&Value::Null), names)
-                    })
-            }),
-            Some("array") => datum
-                .as_array()
-                .is_some_and(|items| items.iter().all(|i| fits(&obj["items"], i, names))),
-            Some("map") => datum
-                .as_object()
-                .is_some_and(|m| m.values().all(|v| fits(&obj["values"], v, names))),
-            Some("enum") => datum
-                .as_str()
-                .is_some_and(|s| obj["symbols"].as_array().unwrap().iter().any(|x| x == s)),
-            _ => fits(&obj["type"], datum, names),
-        },
-        _ => false,
-    }
-}
-
-/// The first branch of `union` that `datum` can be written with.
-fn branch(union: &[Value], datum: &Value, names: &HashMap<String, &Value>) -> Option<usize> {
-    union.iter().position(|b| fits(b, datum, names))
 }
 
 #[test]
