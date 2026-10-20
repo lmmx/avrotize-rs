@@ -170,3 +170,98 @@ fn a_non_string_const_takes_its_value_type() {
     let avro = convert(&schema);
     assert_fits(&avro, json!({"o": {"k": "v"}, "a": [1, 2]}));
 }
+
+/// A JSON Schema with one required property `p` and the given `$defs`.
+fn with_defs(p: Value, defs: Value) -> Value {
+    json!({"type": "object", "required": ["p"], "properties": {"p": p}, "$defs": defs})
+}
+
+/// The type of property `p` of the `document` record in a list of schemas.
+fn p_type(avro: &Value) -> &Value {
+    let document = avro
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|t| t["name"] == "document")
+        .unwrap();
+    &document["fields"][0]["type"]
+}
+
+#[test]
+fn a_ref_to_a_primitive_definition_takes_its_type() {
+    // Was ns.Str, which nothing defines: a primitive definition is not a named type.
+    let avro = convert(&with_defs(
+        json!({"$ref": "#/$defs/Str"}),
+        json!({"Str": {"type": "string"}}),
+    ));
+    assert_eq!(p_type(&avro), &json!("string"));
+}
+
+#[test]
+fn a_nested_ref_names_the_definition_in_its_own_namespace() {
+    // Was ns.document_types.Rec: the nested record's namespace, not the definition's.
+    let rec =
+        json!({"type": "object", "required": ["x"], "properties": {"x": {"type": "integer"}}});
+    let schema = with_defs(
+        json!({"type": "object", "required": ["q"], "properties": {"q": {"$ref": "#/$defs/Rec"}}}),
+        json!({"Rec": rec}),
+    );
+    let avro = convert(&schema);
+    assert_eq!(p_type(&avro)["fields"][0]["type"], json!("ns.Rec"));
+}
+
+#[test]
+fn a_ref_uses_the_name_the_definition_was_given() {
+    // Was ns.my-rec; the definition is registered as my_rec.
+    let avro = convert(&with_defs(
+        json!({"$ref": "#/$defs/my-rec"}),
+        json!({"my-rec": {"type": "object", "properties": {"x": {"type": "integer"}}}}),
+    ));
+    assert_eq!(p_type(&avro), &json!("ns.my_rec"));
+}
+
+#[test]
+fn a_definition_comes_before_the_definitions_that_use_it() {
+    // A refers to B, but A came first: a schema list must define a name before use.
+    let int = json!({"type": "integer"});
+    let avro = convert(&with_defs(
+        json!({"$ref": "#/$defs/A"}),
+        json!({
+            "A": {"type": "object", "properties": {"b": {"$ref": "#/$defs/B"}}},
+            "B": {"type": "object", "properties": {"x": int}}}),
+    ));
+    let names: Vec<&str> = avro
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|t| t["name"].as_str().unwrap())
+        .collect();
+    assert_eq!(names, ["B", "A", "document"]);
+}
+
+#[test]
+fn refs_in_items_and_union_branches_keep_their_type() {
+    // Each became the generic "any" union.
+    let rec = json!({"Rec": {"type": "object", "properties": {"x": {"type": "integer"}}}});
+    let items = convert(&with_defs(
+        json!({"type": "array", "items": {"$ref": "#/$defs/Rec"}}),
+        rec.clone(),
+    ));
+    assert_eq!(p_type(&items), &json!({"type": "array", "items": "ns.Rec"}));
+    let branch = convert(&with_defs(
+        json!({"anyOf": [{"$ref": "#/$defs/Rec"}, {"type": "null"}]}),
+        rec,
+    ));
+    assert_eq!(p_type(&branch), &json!(["ns.Rec", "null"]));
+}
+
+#[test]
+fn defs_are_used_alongside_definitions() {
+    // Only `definitions` was read when both were present, so $defs refs dangled.
+    let schema = json!({"type": "object", "required": ["p", "q"], "properties": {
+            "p": {"$ref": "#/$defs/A"}, "q": {"$ref": "#/definitions/B"}},
+        "$defs": {"A": {"type": "object", "properties": {"a": {"type": "integer"}}}},
+        "definitions": {"B": {"type": "object", "properties": {"b": {"type": "integer"}}}}});
+    let avro = convert(&schema);
+    assert_eq!(p_type(&avro), &json!("ns.A"));
+}

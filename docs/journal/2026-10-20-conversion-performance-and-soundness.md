@@ -427,3 +427,44 @@ its `const` attribute. String consts are unchanged.
 **Compatibility.** The changed outputs were all invalid before. Python avrotize makes
 these enums of stringified symbols (`_7`, `_True`), which fit the data only after
 translating it. The value's type needs no translation.
+
+## 2026-10-20 · `$defs` references resolve to what each definition became (`fix/defs-references`)
+
+**Defect.** A `$ref` to `#/$defs/X` became `"<namespace>.X"` where it was met. That
+reference dangled or came in the wrong order:
+
+- inside a nested record, `<namespace>` was the nested record's, not the root
+  namespace where the definition is registered;
+- `X` was the raw key, while the definition is named `avro_name(X)`, so a key like
+  `my-rec` was never found;
+- a definition that isn't a named type (a primitive, an array, an object without
+  properties) is never registered, so nothing defined the name;
+- a definition that refers to one defined after it came first, and a schema list must
+  define a name before using it;
+- a `$ref` in `items`, a union branch or `additionalProperties` had no handling, and
+  became the generic "any" union;
+- `$defs` was ignored whenever `definitions` was also present.
+
+**Change.**
+
+- Conversion leaves a `#/$defs/X` marker in place.
+- Once every definition (from both containers) is registered, `jsons_to_avro` replaces
+  each marker with the registered full name, or with the converted type when the
+  definition isn't a named type.
+- A stable pass after the dependency sort, `define_before_use`, moves a definition
+  ahead of the first item that refers to it. A list already in a valid order is left
+  unchanged.
+
+**Negative result: recording the dependency.** The first attempt resolved markers to
+names and recorded each name as a dependency, so the sort would order the list. But
+the dependency lists also feed inlining. A new dependency, `"null"` among them (the
+converter records primitive names too), changed which types were inlined in schemas
+with no `$defs` at all. The dependency lists are therefore left alone, and the
+ordering pass needs nothing from them.
+
+**Validation.** On 3,000 random schemas with `$defs`, every changed output was either
+invalid before or had a reference outside a property, where the old code put the
+generic type.
+
+**Compatibility.** A schema that only references named definitions from top-level
+properties converts as before.

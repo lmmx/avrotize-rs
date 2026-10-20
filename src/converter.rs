@@ -24,6 +24,7 @@ use postprocess::{disambiguate_named_types, postprocess_schema, strip_bookkeepin
 use utils::id_to_avro_namespace;
 
 use serde_json::Value;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::Path;
 use url::Url;
@@ -50,25 +51,26 @@ pub fn jsons_to_avro(
     let mut root_name = "document".to_string();
     let mut root_namespace = namespace.to_string();
 
-    // definitions / $defs
-    if let Some(defs) = json_schema
-        .get("definitions")
-        .or_else(|| json_schema.get("$defs"))
-    {
-        if let Some(map) = defs.as_object() {
-            for (def_name, schema) in map {
-                if schema.is_object() {
-                    process_definition(
-                        json_schema,
-                        namespace,
-                        utility_namespace,
-                        base_uri,
-                        &mut avro_schema,
-                        &mut record_stack,
-                        def_name,
-                        schema,
-                        false,
-                    );
+    // definitions / $defs, remembering the name each is registered under
+    let mut registered: HashMap<String, String> = HashMap::new();
+    for container in ["definitions", "$defs"] {
+        let Some(map) = json_schema.get(container).and_then(|d| d.as_object()) else {
+            continue;
+        };
+        for (def_name, schema) in map {
+            if schema.is_object() {
+                if let Some((ns, name)) = process_definition(
+                    json_schema,
+                    namespace,
+                    utility_namespace,
+                    base_uri,
+                    &mut avro_schema,
+                    &mut record_stack,
+                    def_name,
+                    schema,
+                    false,
+                ) {
+                    registered.insert(format!("#/{container}/{def_name}"), format!("{ns}.{name}"));
                 }
             }
         }
@@ -91,6 +93,16 @@ pub fn jsons_to_avro(
             root_name = name;
         }
     }
+
+    // Point references to definitions at what each definition became
+    resolve_definition_refs(
+        &mut avro_schema,
+        &registered,
+        json_schema,
+        namespace,
+        utility_namespace,
+        base_uri,
+    );
 
     // Give differently shaped types that share a full name distinct names
     disambiguate_named_types(&mut avro_schema);
@@ -136,12 +148,204 @@ pub fn jsons_to_avro(
                 return root_copy;
             }
         }
-        Value::Array(sort_messages_by_dependencies(&mut avro_schema))
+        Value::Array(define_before_use(sort_messages_by_dependencies(
+            &mut avro_schema,
+        )))
     } else {
         Value::Array(Vec::new())
     };
     strip_bookkeeping(&mut avro);
     avro
+}
+
+/// Replace the references to `$defs` entries that conversion leaves in type positions.
+///
+/// A definition registered as a named type is referred to by its full name. A
+/// definition that is not a named type (a primitive, an array, an empty object) has
+/// its type converted once and inlined where it is referred to; a cycle among such
+/// definitions falls back to the generic type. A reference to a missing entry becomes
+/// the name it had before, which is not defined.
+fn resolve_definition_refs(
+    avro_schema: &mut [Value],
+    registered: &HashMap<String, String>,
+    json_schema: &Value,
+    namespace: &str,
+    utility_namespace: &str,
+    base_uri: &str,
+) {
+    use conversion::{is_definition_ref, json_type_to_avro_type};
+
+    /// The `$defs` references in `value`'s type positions (not in const or default data).
+    fn collect(value: &Value, refs: &mut HashSet<String>) {
+        match value {
+            Value::String(r) if is_definition_ref(r) => {
+                refs.insert(r.clone());
+            }
+            Value::Object(obj) => obj
+                .iter()
+                .filter(|(k, _)| *k != "const" && *k != "default")
+                .for_each(|(_, v)| collect(v, refs)),
+            Value::Array(arr) => arr.iter().for_each(|v| collect(v, refs)),
+            _ => {}
+        }
+    }
+
+    struct Resolver<'a> {
+        registered: &'a HashMap<String, String>,
+        /// Converted types of the referenced definitions that are not named types.
+        inline: HashMap<String, Value>,
+        namespace: &'a str,
+        /// Inline definitions being expanded, to stop at a cycle.
+        visiting: HashSet<String>,
+    }
+
+    impl Resolver<'_> {
+        /// The type `ref_str` stands for.
+        fn resolve(&mut self, ref_str: &str) -> Value {
+            if let Some(full_name) = self.registered.get(ref_str) {
+                return Value::String(full_name.clone());
+            }
+            let Some(t) = self.inline.get(ref_str).cloned() else {
+                let name = ref_str.trim_start_matches("#/$defs/");
+                return Value::String(format!("{}.{}", self.namespace, name));
+            };
+            if !self.visiting.insert(ref_str.to_string()) {
+                return Value::Array(crate::common::generic_type());
+            }
+            let mut t = t;
+            self.replace(&mut t);
+            self.visiting.remove(ref_str);
+            t
+        }
+
+        fn replace(&mut self, value: &mut Value) {
+            match value {
+                Value::Object(obj) => {
+                    for (k, v) in obj.iter_mut() {
+                        if k == "const" || k == "default" {
+                            continue;
+                        }
+                        match v.as_str() {
+                            Some(r) if is_definition_ref(r) => *v = self.resolve(r),
+                            _ => self.replace(v),
+                        }
+                    }
+                }
+                Value::Array(arr) => {
+                    for v in arr.iter_mut() {
+                        match v.as_str() {
+                            Some(r) if is_definition_ref(r) => *v = self.resolve(r),
+                            _ => self.replace(v),
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    let mut refs = HashSet::new();
+    avro_schema.iter().for_each(|t| collect(t, &mut refs));
+    if refs.is_empty() {
+        return;
+    }
+
+    // Convert the referenced definitions that are not named types, and what they refer to.
+    let mut inline = HashMap::new();
+    let mut pending: Vec<String> = refs.into_iter().collect();
+    pending.sort_unstable();
+    while let Some(ref_str) = pending.pop() {
+        if registered.contains_key(&ref_str) || inline.contains_key(&ref_str) {
+            continue;
+        }
+        let name = ref_str.trim_start_matches("#/$defs/");
+        let Some(schema) = json_schema.get("$defs").and_then(|d| d.get(name)) else {
+            continue;
+        };
+        let t = json_type_to_avro_type(
+            schema,
+            name,
+            "",
+            namespace,
+            utility_namespace,
+            &mut Vec::new(),
+            json_schema,
+            base_uri,
+            &mut Vec::new(),
+            &mut Vec::new(),
+            1,
+        );
+        let mut more = HashSet::new();
+        collect(&t, &mut more);
+        pending.extend(more);
+        inline.insert(ref_str, t);
+    }
+
+    let mut resolver = Resolver {
+        registered,
+        inline,
+        namespace,
+        visiting: HashSet::new(),
+    };
+    for item in avro_schema.iter_mut() {
+        resolver.replace(item);
+    }
+}
+
+/// `items` reordered so that each named item comes before the items that refer to it.
+///
+/// A schema list is read in order, so a name must be defined before it is used, but a
+/// reference to a definition is not one of the dependencies the sort orders by. The
+/// earliest item whose references are all defined goes next (the first left, in a
+/// cycle), so a list already in a valid order keeps it.
+fn define_before_use(items: Vec<Value>) -> Vec<Value> {
+    fn full_name(item: &Value) -> Option<String> {
+        let name = item.get("name")?.as_str()?;
+        Some(match item.get("namespace").and_then(Value::as_str) {
+            Some(ns) if !ns.is_empty() => format!("{ns}.{name}"),
+            _ => name.to_string(),
+        })
+    }
+    fn refs(value: &Value, names: &HashSet<String>, out: &mut HashSet<String>) {
+        match value {
+            Value::String(s) if names.contains(s) => {
+                out.insert(s.clone());
+            }
+            Value::Object(obj) => obj
+                .iter()
+                .filter(|(k, _)| *k != "const" && *k != "default" && *k != "name")
+                .for_each(|(_, v)| refs(v, names, out)),
+            Value::Array(arr) => arr.iter().for_each(|v| refs(v, names, out)),
+            _ => {}
+        }
+    }
+
+    let names: HashSet<String> = items.iter().filter_map(full_name).collect();
+    let mut pending: Vec<(Value, HashSet<String>)> = items
+        .into_iter()
+        .map(|item| {
+            let mut needed = HashSet::new();
+            refs(&item, &names, &mut needed);
+            if let Some(own) = full_name(&item) {
+                needed.remove(&own);
+            }
+            (item, needed)
+        })
+        .collect();
+    let mut defined = HashSet::new();
+    let mut ordered = Vec::with_capacity(pending.len());
+    while !pending.is_empty() {
+        let next = pending
+            .iter()
+            .position(|(_, needed)| needed.is_subset(&defined))
+            .unwrap_or(0);
+        let (item, _) = pending.remove(next);
+        if let Some(name) = full_name(&item) {
+            defined.insert(name);
+        }
+        ordered.push(item);
+    }
+    ordered
 }
 
 /// Whether `record` lists itself among its dependencies, by name or full name, as
