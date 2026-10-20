@@ -310,3 +310,21 @@ fn a_ref_to_the_root_converts() {
     let schema = json!({"type": "object", "properties": {"p": {"$ref": "#"}}});
     convert(&schema);
 }
+
+#[test]
+fn a_pattern_map_field_does_not_take_a_property_name() {
+    // The patternProperties map is a field named after its record, so a record `kind`
+    // with a property `kind` had two fields named kind.
+    let schema = json!({"type": "object", "required": ["kind"], "properties": {"kind": {
+        "type": "object", "required": ["kind"],
+        "properties": {"kind": {"type": "string"}},
+        "patternProperties": {"^p": {"type": "integer"}}}}});
+    let avro = convert(&schema);
+    let fields: Vec<&Value> = avro["fields"][0]["type"]["fields"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|f| &f["name"])
+        .collect();
+    assert_eq!(fields, [&json!("kind"), &json!("kind_1")]);
+}
