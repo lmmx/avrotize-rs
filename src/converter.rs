@@ -29,6 +29,7 @@ use std::fs;
 use std::path::Path;
 use url::Url;
 
+use crate::common::names::avro_namespace;
 use crate::common::traversal::find_schema_node;
 use crate::dependency_resolver::{inline_dependencies_of, sort_messages_by_dependencies};
 
@@ -422,12 +423,14 @@ pub fn convert_jsons_to_avro(
         serde_json::from_str(&content).map_err(|e| format!("Invalid JSON schema: {e}"))?;
 
     let mut ns: String = namespace.map(|s| s.to_string()).unwrap_or_else(|| {
-        Path::new(json_schema_file_path)
-            .file_stem()
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .to_string()
+        // A file name may hold characters a namespace can't (my-schema.json).
+        avro_namespace(
+            Path::new(json_schema_file_path)
+                .file_stem()
+                .unwrap()
+                .to_str()
+                .unwrap(),
+        )
     });
 
     if let Some(id) = json_schema.get("$id").and_then(|v| v.as_str()) {
