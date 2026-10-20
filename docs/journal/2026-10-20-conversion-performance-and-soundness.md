@@ -544,3 +544,15 @@ null.
 infers for a key present in every row but sometimes null, goes from `"string"` to
 `["null", "string"]`. Data with a null there could not be written before, but
 consumers that read the field's type see a union now.
+
+## 2026-10-20 · `additionalProperties: true` holds any values (`fix/additional-properties-true`)
+
+**Defect.** An object whose only properties are additional ones
+(`additionalProperties: true`) became a map of strings, despite the code comment saying
+"any values". A number, object or array among them could not be written.
+
+**Change.** It becomes a map of the generic type, as an object without properties and
+Python avrotize already do.
+
+**Compatibility: this changes valid output.** The map's values go from `string` to the
+generic union, which still includes `string`.
