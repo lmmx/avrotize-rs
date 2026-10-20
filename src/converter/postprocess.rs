@@ -108,6 +108,11 @@ pub fn postprocess_schema(avro_schema: &mut [Value], types_with_unmerged: Vec<Va
 /// Keys the converter keeps on types for its own use, which are not Avro attributes.
 const BOOKKEEPING_KEYS: [&str; 2] = ["dependencies", "unmerged_types"];
 
+/// Whether an object's `key` holds data (a `const` or `default` value) rather than types.
+fn is_data_key(key: &str) -> bool {
+    key == "const" || key == "default"
+}
+
 /// The `(namespace, name)` of a named Avro type (record, enum or fixed).
 fn named_type_key(avro_type: &Value) -> Option<(String, String)> {
     let obj = avro_type.as_object()?;
@@ -197,21 +202,25 @@ pub fn disambiguate_named_types(avro_schema: &mut [Value]) {
             *count += 1;
         }
         match value {
-            Value::Object(obj) => obj.values().for_each(|v| collect_names(v, taken, count)),
+            Value::Object(obj) => obj
+                .iter()
+                .filter(|(k, _)| !is_data_key(k))
+                .for_each(|(_, v)| collect_names(v, taken, count)),
             Value::Array(arr) => arr.iter().for_each(|v| collect_names(v, taken, count)),
             _ => {}
         }
     }
 
     /// Visit every value in document order, recording for each named type the id of
-    /// its shape (as found, before any renaming).
+    /// its shape (as found, before any renaming). Values in `const` and `default` data
+    /// are part of their parent's shape, but are never named types themselves.
     fn survey<'a>(
         value: &'a Value,
         data: bool,
         ids: &mut ShapeIds<'a>,
         named: &mut Vec<u32>,
     ) -> u32 {
-        let slot = named_type_key(value).map(|_| {
+        let slot = named_type_key(value).filter(|_| !data).map(|_| {
             named.push(0);
             named.len() - 1
         });
@@ -224,7 +233,7 @@ pub fn disambiguate_named_types(avro_schema: &mut [Value]) {
                 let strip = !data && obj.contains_key("type");
                 let mut entries: Vec<(&str, u32)> = Vec::with_capacity(obj.len());
                 for (k, v) in obj {
-                    let child_data = data || k == "const" || k == "default";
+                    let child_data = data || is_data_key(k);
                     let id = survey(v, child_data, ids, named);
                     if !(strip && BOOKKEEPING_KEYS.contains(&k.as_str())) {
                         entries.push((k.as_str(), id));
@@ -236,9 +245,7 @@ pub fn disambiguate_named_types(avro_schema: &mut [Value]) {
             _ => ids.id(value, data),
         };
         if let Some(slot) = slot {
-            // A named type is compared with its own bookkeeping stripped, even inside
-            // const or default data.
-            named[slot] = if data { ids.id(value, false) } else { id };
+            named[slot] = id;
         }
         id
     }
@@ -290,8 +297,9 @@ pub fn disambiguate_named_types(avro_schema: &mut [Value]) {
         }
         match avro_type {
             Value::Object(obj) => obj
-                .values_mut()
-                .for_each(|v| rename(v, named, given, taken)),
+                .iter_mut()
+                .filter(|(k, _)| !is_data_key(k))
+                .for_each(|(_, v)| rename(v, named, given, taken)),
             Value::Array(arr) => arr.iter_mut().for_each(|v| rename(v, named, given, taken)),
             _ => {}
         }

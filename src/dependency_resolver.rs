@@ -34,7 +34,11 @@ pub fn adjust_resolved_dependencies(avro_schema: &mut Value) {
             }
 
             if let Some(obj) = current_node.as_object_mut() {
-                for v in obj.values_mut() {
+                // const and default values are data, not types to resolve or dedup.
+                for (_, v) in obj
+                    .iter_mut()
+                    .filter(|(k, _)| *k != "const" && *k != "default")
+                {
                     if v.is_object() || v.is_array() {
                         if let Some(qname) = self.walk_schema(v, record_list) {
                             self.found_something = true;

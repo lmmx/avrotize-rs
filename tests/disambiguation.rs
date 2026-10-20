@@ -1,10 +1,12 @@
 //! `disambiguate_named_types` must name types exactly as 0.1.2 did, which compared
-//! cloned, bookkeeping-stripped subtrees.
+//! cloned, bookkeeping-stripped subtrees, except that `const` and `default` data are
+//! no longer searched for types to rename (0.1.2 renamed data shaped like a type).
 use avrotize::converter::postprocess::{disambiguate_named_types, strip_bookkeeping};
 use serde_json::{json, Map, Value};
 use std::collections::{HashMap, HashSet};
 
-/// 0.1.2's `disambiguate_named_types`, kept as the reference.
+/// 0.1.2's `disambiguate_named_types`, kept as the reference, with its one fix: it
+/// doesn't descend into `const` or `default` data.
 fn disambiguate_0_1_2(avro_schema: &mut [Value]) {
     fn named_type_key(avro_type: &Value) -> Option<(String, String)> {
         let obj = avro_type.as_object()?;
@@ -21,7 +23,10 @@ fn disambiguate_0_1_2(avro_schema: &mut [Value]) {
             taken.insert(key);
         }
         match avro_type {
-            Value::Object(obj) => obj.values().for_each(|v| collect_names(v, taken)),
+            Value::Object(obj) => obj
+                .iter()
+                .filter(|(k, _)| *k != "const" && *k != "default")
+                .for_each(|(_, v)| collect_names(v, taken)),
             Value::Array(arr) => arr.iter().for_each(|v| collect_names(v, taken)),
             _ => {}
         }
@@ -52,7 +57,10 @@ fn disambiguate_0_1_2(avro_schema: &mut [Value]) {
             }
         }
         match avro_type {
-            Value::Object(obj) => obj.values_mut().for_each(|v| rename(v, seen, taken)),
+            Value::Object(obj) => obj
+                .iter_mut()
+                .filter(|(k, _)| *k != "const" && *k != "default")
+                .for_each(|(_, v)| rename(v, seen, taken)),
             Value::Array(arr) => arr.iter_mut().for_each(|v| rename(v, seen, taken)),
             _ => {}
         }
