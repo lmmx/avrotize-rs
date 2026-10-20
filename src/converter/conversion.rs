@@ -69,11 +69,11 @@ mod innermod {
         if let Some(additional) = json_object.get("additionalProperties") {
             if additional.is_boolean() {
                 if additional.as_bool().unwrap() {
-                    // "additionalProperties": true -> generic map<string, any>
-                    return Some(json!({
-                        "type": "map",
-                        "values": "string"
-                    }));
+                    // "additionalProperties": true -> a map of any values
+                    return Some(object([
+                        ("type", "map".into()),
+                        ("values", Value::Array(generic_type())),
+                    ]));
                 }
             } else if additional.is_object() {
                 let mut deps = Vec::new();
