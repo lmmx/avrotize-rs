@@ -495,3 +495,15 @@ tracing needs `Debug` closure arguments.
 random schemas.
 
 **Compatibility.** Schemas that recurse used to crash the process.
+
+## 2026-10-20 · Pattern map field names (`fix/pattern-field-name`)
+
+**Defect.** `patternProperties` become a map field named after its record. A record
+with a property of the record's own name (`kind` in `kind`) therefore had two fields
+with one name, which Avro rejects.
+
+**Change.** When that name is already a field, the map field takes the first free
+suffix (`kind_1`, ...). Otherwise it is named as before.
+
+**Validation.** On 3,000 random schemas, all 29 changed outputs had a repeated field
+name.
