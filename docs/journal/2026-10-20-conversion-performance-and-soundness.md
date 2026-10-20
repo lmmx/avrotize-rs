@@ -523,3 +523,24 @@ did. The 0.1.2 reference copy in `tests/disambiguation.rs` gets the same one-lin
 change, so it still checks everything else byte for byte.
 
 **Compatibility.** Only values that were corrupted change.
+
+## 2026-10-20 · Type lists with null keep null (`fix/nullable-type-lists`)
+
+**Defect.** `{"type": ["boolean", "null"]}` converted to `"boolean"`. The null was
+dropped, and added back only when the field was optional. So a required field, an
+array item or a union branch with a nullable type list could not hold null, although
+the JSON Schema allows it. Lists of three or more types dropped null the same way.
+Python avrotize has the same bug.
+
+**Change.** The other types are converted, then `null` is added with `union_members`.
+Optional fields are unchanged, as they already had `null` first. A pattern map's values
+are flattened the same way, so a pattern whose type is a union (from a type list or
+`anyOf`) is no longer a union nested in the map's values.
+
+**Validation.** Every changed output in the differential came from a type list with
+null.
+
+**Compatibility: this changes valid output.** A required nullable field, which genson
+infers for a key present in every row but sometimes null, goes from `"string"` to
+`["null", "string"]`. Data with a null there could not be written before, but
+consumers that read the field's type see a union now.
