@@ -243,8 +243,15 @@ pub fn disambiguate_named_types(avro_schema: &mut [Value]) {
         id
     }
 
-    /// Names given so far, per original full name: (shape id, name given).
-    type Given = HashMap<(String, String), Vec<(u32, String)>>;
+    /// Per original full name: the name given to each shape so far, and the suffix
+    /// from which to look for a free name.
+    #[derive(Default)]
+    struct Family {
+        given: Vec<(u32, String)>,
+        next_suffix: usize,
+    }
+
+    type Given = HashMap<(String, String), Family>;
 
     fn rename(
         avro_type: &mut Value,
@@ -254,21 +261,26 @@ pub fn disambiguate_named_types(avro_schema: &mut [Value]) {
     ) {
         if let Some((namespace, name)) = named_type_key(avro_type) {
             let shape = *named.next().expect("survey saw every named type");
-            let defs = given.entry((namespace.clone(), name.clone())).or_default();
-            let name_given = match defs.iter().find(|(s, _)| *s == shape) {
+            let family = given.entry((namespace.clone(), name.clone())).or_default();
+            let name_given = match family.given.iter().find(|(s, _)| *s == shape) {
                 Some((_, g)) => g.clone(),
                 None => {
-                    let g = if defs.is_empty() {
+                    let g = if family.given.is_empty() {
                         name.clone()
                     } else {
-                        let fresh = (1..)
-                            .map(|i| format!("{name}_{i}"))
-                            .find(|n| !taken.contains(&(namespace.clone(), n.clone())))
-                            .unwrap();
-                        taken.insert((namespace.clone(), fresh.clone()));
-                        fresh
+                        // The first free suffix: names are only ever added to `taken`, so
+                        // it never decreases, and the search can resume where it stopped.
+                        let mut i = family.next_suffix.max(1);
+                        let mut key = (namespace, format!("{name}_{i}"));
+                        while taken.contains(&key) {
+                            i += 1;
+                            key.1 = format!("{name}_{i}");
+                        }
+                        family.next_suffix = i + 1;
+                        taken.insert(key.clone());
+                        key.1
                     };
-                    defs.push((shape, g.clone()));
+                    family.given.push((shape, g.clone()));
                     g
                 }
             };
