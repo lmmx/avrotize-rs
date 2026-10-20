@@ -96,3 +96,38 @@ fn a_formatted_branch_of_a_union_is_kept() {
     assert_eq!(avro["fields"][0]["type"], json!(["long", "boolean"]));
     assert_fits(&avro, json!({"v": 1_099_511_627_776_i64}));
 }
+
+#[test]
+fn an_optional_union_gains_null_instead_of_nesting() {
+    // Was ["null", ["string", "int"]]: a union directly inside a union.
+    let schema = json!({"type": "object", "properties": {"o": {"oneOf": [
+        {"type": "string"}, {"type": "integer"}]}}});
+    let avro = convert(&schema);
+    assert_eq!(avro["fields"][0]["type"], json!(["null", "string", "int"]));
+    assert_fits(&avro, json!({"o": null}));
+    assert_fits(&avro, json!({"o": 3}));
+}
+
+#[test]
+fn a_repeated_union_member_is_dropped() {
+    // Was ["null", "boolean", "null"].
+    let schema = json!({"type": "object", "required": ["n"], "properties": {"n": {"oneOf": [
+        {"type": "null"}, {"type": "boolean"}, {"type": "null"}]}}});
+    let avro = convert(&schema);
+    assert_eq!(avro["fields"][0]["type"], json!(["null", "boolean"]));
+}
+
+#[test]
+fn arrays_in_a_union_merge_into_one_array_of_their_items() {
+    // Was two array members, which a union may not hold; Python avrotize keeps only the
+    // first, dropping the integer items.
+    let schema = json!({"type": "object", "required": ["two"], "properties": {"two": {"anyOf": [
+        {"type": "array", "items": {"type": "string"}},
+        {"type": "array", "items": {"type": "integer"}}]}}});
+    let avro = convert(&schema);
+    assert_eq!(
+        avro["fields"][0]["type"],
+        json!([{"type": "array", "items": ["string", "int"]}])
+    );
+    assert_fits(&avro, json!({"two": ["a", 1]}));
+}

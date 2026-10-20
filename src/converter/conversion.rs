@@ -9,6 +9,7 @@ mod innermod {
         create_wrapper_record, object,
     };
     use crate::converter::types::json_schema_primitive_to_avro_type;
+    use crate::converter::unions::union_members;
     use crate::converter::utils::{merge_dependencies_into_parent, merge_description_into_doc};
     use serde_json::{json, Value};
 
@@ -377,7 +378,13 @@ mod innermod {
                     match &effective_type {
                         Value::Array(arr) if arr.iter().any(|t| t == "null") => {}
                         _ => {
-                            effective_type = Value::Array(vec!["null".into(), effective_type]);
+                            // Add null to a union rather than nesting the union in one.
+                            let mut members = vec!["null".into()];
+                            match effective_type {
+                                Value::Array(union) => members.extend(union),
+                                other => members.push(other),
+                            }
+                            effective_type = Value::Array(union_members(members));
                         }
                     }
                 }
@@ -557,7 +564,7 @@ mod innermod {
                         other => union_types.push(other),
                     }
                 }
-                return Value::Array(union_types);
+                return Value::Array(union_members(union_types));
             }
 
             if obj.contains_key("allOf") {

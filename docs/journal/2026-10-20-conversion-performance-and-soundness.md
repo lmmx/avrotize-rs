@@ -382,3 +382,30 @@ an unmapped format.
 
 **Compatibility.** A field typed `[]` could never be written, so no working pipeline
 depends on the old output. An `int64` integer is now a `long`.
+
+## 2026-10-20 · Well-formed unions (`fix/union-members`)
+
+**Defect.** Avro forbids a union directly inside a union, and two members of the same
+type in one union. The converter broke both rules:
+
+- An optional field whose type was already a union, such as an optional `oneOf`, was
+  wrapped as `["null", [...]]`.
+- `oneOf` and `anyOf` members were concatenated as they came. A repeated member stayed
+  unless it was next to its twin, because the resolver's `Vec::dedup` only removes
+  neighbours. Two arrays, or two maps, stayed two members.
+
+**Change.** `unions::union_members`:
+
+- splices nested unions in;
+- drops repeated members;
+- merges every array into one whose items are the union of theirs, and every map the
+  same way by values.
+
+The nullable wrapper adds `null` to a union instead of nesting it. Members that break
+no rule are kept as they are, in their order.
+
+**Validation.** On 3,000 random schemas, all 342 outputs that changed broke a union
+rule before.
+
+**Compatibility.** Those schemas were rejected by every Avro parser, so no working
+pipeline depends on them.
