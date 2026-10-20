@@ -468,3 +468,30 @@ generic type.
 
 **Compatibility.** A schema that only references named definitions from top-level
 properties converts as before.
+
+## 2026-10-20 · Recursive pointer references (`fix/recursive-pointer-refs`)
+
+**Defect.** Pointer references (`#/definitions/X`, `#`, `#/properties/...`) were
+expanded inline at each use, with no check for recursion. A definition that refers to
+itself (a linked list, a tree), or a `$ref` to `#`, expanded until the stack
+overflowed and the process aborted. `$defs` references were spared only because they
+became named references.
+
+**Change.** `refs::expand_once` tracks the references being expanded, on a
+thread-local stack with a drop guard. A reference met again while it is being
+expanded becomes:
+
+- a reference to the definition, which the `$defs` resolution now resolves for
+  `definitions` too;
+- or, when it points anywhere else, the generic type.
+
+Each definition is registered with its own reference already marked, so a recursive
+definition refers to itself by name: `Node { next: Node }`.
+
+The helpers live in a module outside crustrace's instrumented one, because its
+tracing needs `Debug` closure arguments.
+
+**Validation.** Schemas that don't recurse convert as before, byte-identical on 3,500
+random schemas.
+
+**Compatibility.** Schemas that recurse used to crash the process.
