@@ -434,10 +434,14 @@ mod innermod {
                 ("values", Value::Array(pattern_types)),
                 ("name", record_name.as_str().into()),
             ]);
-            avro_record["fields"].as_array_mut().unwrap().push(object([
-                ("name", record_name.as_str().into()),
-                ("type", pattern_map),
-            ]));
+            let fields = avro_record["fields"].as_array_mut().unwrap();
+            // The map is named after the record, unless a property already took that name.
+            let taken = |n: &str| fields.iter().any(|f| f["name"] == n);
+            let field_name = std::iter::once(record_name.clone())
+                .chain((1..).map(|i| format!("{record_name}_{i}")))
+                .find(|n| !taken(n))
+                .unwrap();
+            fields.push(object([("name", field_name.into()), ("type", pattern_map)]));
         }
 
         if let Some(additional) = handle_additional_properties(
