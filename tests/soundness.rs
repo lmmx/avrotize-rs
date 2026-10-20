@@ -437,3 +437,19 @@ fn an_object_that_must_be_empty_or_declares_properties_stays_a_record() {
         assert_eq!(field["type"]["type"], "record", "{field}");
     }
 }
+
+#[test]
+fn a_union_stays_well_formed_after_a_definition_is_inlined_into_it() {
+    // The union was normalized before the reference to Str became "string", which
+    // then repeated the string already there.
+    let defs = json!({"Str": {"type": "string"}});
+    let avro = convert(&with_defs(
+        json!({"anyOf": [{"$ref": "#/$defs/Str"}, {"type": "string"}, {"type": "integer"}]}),
+        defs.clone(),
+    ));
+    assert_eq!(p_type(&avro), &json!(["string", "int"]));
+    convert(&with_defs(
+        json!({"anyOf": [{"$ref": "#/$defs/Str"}, {}]}),
+        defs,
+    ));
+}
