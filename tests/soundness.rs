@@ -404,3 +404,36 @@ fn additional_properties_true_holds_values_of_any_type() {
         json!({"k": {"s": "x", "n": 1, "o": {"a": true}, "l": [1, "y"]}}),
     );
 }
+
+#[test]
+fn an_object_without_properties_holds_any_properties() {
+    // #12: such an object became a record with no fields, which drops every key.
+    let schema = json!({"type": "object", "required": ["m", "n", "a"], "properties": {
+        "m": {"type": "object"},
+        "n": {"type": "object", "maxProperties": 3},
+        "a": {"type": "array", "items": {"type": "object", "minProperties": 1}}}});
+    let avro = convert(&schema);
+    for field in avro["fields"].as_array().unwrap() {
+        let t = &field["type"];
+        let map = if t["type"] == "array" { &t["items"] } else { t };
+        assert_eq!(map["type"], "map", "{field}");
+    }
+    assert_fits(
+        &avro,
+        json!({"m": {"k": 1}, "n": {"x": "y"}, "a": [{"z": [true]}]}),
+    );
+    // The root too: a wrapper record holding the map.
+    let root = convert(&json!({"type": "object", "maxProperties": 3}));
+    assert_eq!(root["fields"][0]["type"]["type"], "map");
+}
+
+#[test]
+fn an_object_that_must_be_empty_or_declares_properties_stays_a_record() {
+    let schema = json!({"type": "object", "required": ["f", "e"], "properties": {
+        "f": {"type": "object", "additionalProperties": false},
+        "e": {"type": "object", "properties": {}}}});
+    let avro = convert(&schema);
+    for field in avro["fields"].as_array().unwrap() {
+        assert_eq!(field["type"]["type"], "record", "{field}");
+    }
+}
