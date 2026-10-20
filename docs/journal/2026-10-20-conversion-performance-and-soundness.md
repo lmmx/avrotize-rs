@@ -633,3 +633,35 @@ list, or panicked, change.
 entry) a merge never saw two types, so its 1,500-schema differential shows no change.
 The regression test is the reduced `$defs` case. The next entry's fuzz run, which
 reaches these merges through properties, found the panic.
+
+## 2026-10-20 · `allOf` in a property (`fix/all-of-members`)
+
+**Defect.** Found by following up on the remaining `union` failures after the entries
+above. `json_type_to_avro_type` handles an `allOf` met in a property, an array item or
+a union branch, but it merged the schema with nothing but itself, `allOf` included.
+Each step therefore recursed on the same schema until the depth limit (40) gave up
+with the generic type, printing `Maximum recursion depth reached`. Every field was
+lost, and the warning was the only sign. `allOf` at the root or in a definition goes
+through `process_definition`, which merged correctly.
+
+**Change.** The schema without its `allOf` is merged with each member, as
+`process_definition` and Python avrotize do. A member's local `$ref` is merged with
+what it points at, which is the usual extension pattern
+(`allOf: [{$ref: Base}, {properties: ...}]`). That loop is bounded, as a reference may
+lead back to itself. Such a definition still ends at the depth limit with the generic
+type, as in Python.
+
+**Validation.**
+
+- On 1,500 random schemas, all 181 changed outputs have an `allOf`, and the strict
+  parser accepts every new output. For `allOf [{$ref: Base}, {...}]` the output now
+  matches Python's record.
+- The first fuzz run of this fix crashed 4 times out of 2,000. Merging real members
+  now reaches type conflicts, and with them the panic in the entry above. That entry
+  is fixed first, and the fuzz run on this branch has no crashes.
+
+**Compatibility: this changes valid output.** A property with `allOf` goes from the
+generic union to a record with the merged fields. The fuzzer's `ok` count stays flat
+(736 → 735). Those properties were accepted, shallowly, by the generic type, and are
+now records. Like every converted record they are closed, so instances with extra
+keys move from `ok` to `extra` (see the limitations below).

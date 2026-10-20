@@ -502,6 +502,39 @@ mod innermod {
                 .all(|k| json_object.get(*k).is_none())
     }
 
+    /// The schema an `allOf` describes: the schema without its `allOf`, merged with
+    /// each member, a member's local `$ref` merged with what it points at.
+    fn merge_all_of(json_type: &Value, json_schema: &Value) -> Value {
+        let mut base = json_type.clone();
+        let members = base
+            .as_object_mut()
+            .and_then(|obj| obj.remove("allOf"))
+            .and_then(|all_of| match all_of {
+                Value::Array(members) => Some(members),
+                _ => None,
+            })
+            .unwrap_or_default();
+        let mut type_list = vec![base];
+        for mut member in members {
+            // A bound, as a reference may lead back to itself.
+            for _ in 0..32 {
+                let Some(resolved) = member
+                    .get("$ref")
+                    .and_then(Value::as_str)
+                    .and_then(|r| r.strip_prefix('#'))
+                    .and_then(|pointer| json_schema.pointer(pointer))
+                else {
+                    break;
+                };
+                let resolved = resolved.clone();
+                member.as_object_mut().unwrap().remove("$ref");
+                member = merge_json_schemas(&[member, resolved], false);
+            }
+            type_list.push(member);
+        }
+        merge_json_schemas(&type_list, false)
+    }
+
     /// The Avro type of a non-string `const` value, mapped as its JSON type would be.
     fn const_type(value: &Value) -> Option<&'static str> {
         match value {
@@ -668,7 +701,7 @@ mod innermod {
             }
 
             if obj.contains_key("allOf") {
-                let merged = merge_json_schemas(std::slice::from_ref(json_type), false);
+                let merged = merge_all_of(json_type, json_schema);
                 return json_type_to_avro_type(
                     &merged,
                     record_name,
