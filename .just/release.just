@@ -1,5 +1,7 @@
 # Rust release workflow using release-plz
-ship:
+#   just ship          -> the version release-plz proposes
+#   just ship 0.2.0    -> this version instead (release-plz set-version)
+ship version="":
     #!/usr/bin/env -S echo-comment --shell-flags="-euo pipefail" --color="\\033[38;5;202m"
 
     # 🔍 Refuse to run if not on master branch or not up to date with origin/master
@@ -25,12 +27,29 @@ ship:
     just publish --dry-run
     # ✅ Dry-run went OK, proceeding to real release
     
+    # 🔍 Refuse to run on a dirty working tree: the release commit must hold only the release
+    if [[ -n "$(git status --porcelain)" ]]; then
+        # ❌ Refusing to run: the working tree is not clean
+        git status --short
+        exit 1
+    fi
+
     # 🦀 Update Cargo.toml versions and changelogs
     release-plz update
-    git add .
-    # Run a pre-precommit lint pass to avoid the linter halting our release!
+    if [[ -n "{{version}}" ]]; then
+        # 🦀 Setting the version to {{version}}
+        release-plz set-version "{{version}}"
+    fi
+    # Run the lint fixers before staging, so the release commit holds what they change
     just precommit || true
+    git add --all
     git commit -m "chore(release): 🦀 Upgrades"
+    # 🔍 Stop before pushing if anything (a hook or fixer) changed files after the commit
+    if [[ -n "$(git status --porcelain)" ]]; then
+        # ❌ The working tree changed after the release commit; nothing was pushed
+        git status --short
+        exit 1
+    fi
     # Note: if already pushed you would just need to revert the additions (delete changelogs)
 
     # 🦀 Run prepush only for the Rust crates we are releasing
