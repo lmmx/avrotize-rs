@@ -488,3 +488,32 @@ fn merging_three_schemas_of_different_types_does_not_panic() {
             {"type": "object"}]}}});
     convert(&schema);
 }
+
+#[test]
+fn all_of_in_a_property_merges_its_members() {
+    // An allOf in a property was merged with itself, allOf and all, until the depth
+    // limit gave up with the generic type: the fields were lost.
+    let schema = json!({"type": "object", "required": ["pet"],
+        "$defs": {"Base": {"type": "object", "required": ["id"],
+            "properties": {"id": {"type": "string"}}}},
+        "properties": {"pet": {"allOf": [
+            {"$ref": "#/$defs/Base"},
+            {"type": "object", "properties": {"legs": {"type": "integer"}}}]}}});
+    let avro = convert(&schema);
+    let document = avro
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|t| t["name"] == "document")
+        .unwrap();
+    let pet = &document["fields"][0]["type"];
+    assert_eq!(pet["type"], "record");
+    let names: Vec<&Value> = pet["fields"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|f| &f["name"])
+        .collect();
+    assert_eq!(names, [&json!("id"), &json!("legs")]);
+    assert_fits(&avro, json!({"pet": {"id": "p1", "legs": 4}}));
+}
