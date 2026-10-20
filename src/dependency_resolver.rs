@@ -3,8 +3,8 @@ use std::collections::HashSet;
 
 /// Recursively adjust resolved dependencies so records are defined before use.
 ///
-/// The first definition of each record or enum full name stays where it is, and
-/// every later one is replaced by a reference to that name.
+/// The first definition of each record, enum or fixed full name stays where it is,
+/// and every later one is replaced by a reference to that name.
 pub fn adjust_resolved_dependencies(avro_schema: &mut Value) {
     struct TreeWalker {
         found_something: bool,
@@ -18,7 +18,7 @@ pub fn adjust_resolved_dependencies(avro_schema: &mut Value) {
         ) -> Option<String> {
             if let Some(obj) = current_node.as_object() {
                 if let Some(t) = obj.get("type").and_then(|v| v.as_str()) {
-                    if t == "record" || t == "enum" {
+                    if t == "record" || t == "enum" || t == "fixed" {
                         let qname = format!(
                             "{}.{}",
                             obj.get("namespace").and_then(|n| n.as_str()).unwrap_or(""),

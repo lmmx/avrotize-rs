@@ -81,14 +81,23 @@ pub fn json_schema_primitive_to_avro_type(
 
     if let Some(fmt) = format {
         match fmt {
-            "date-time" | "date" => {
+            "date-time" => {
+                // A date alone would drop the time of day.
+                avro_type = json!({"type": "long", "logicalType": "timestamp-millis"});
+            }
+            "date" => {
                 avro_type = json!({"type": "int", "logicalType": "date"});
             }
             "time" => {
                 avro_type = json!({"type": "int", "logicalType": "time-millis"});
             }
             "duration" => {
-                avro_type = json!({"type": "fixed", "size": 12, "logicalType": "duration"});
+                // A fixed type must be named; identical ones share the name.
+                avro_type = json!({"type": "fixed", "name": "duration", "namespace": namespace,
+                    "size": 12, "logicalType": "duration"});
+                if namespace.is_empty() {
+                    avro_type.as_object_mut().unwrap().shift_remove("namespace");
+                }
             }
             "uuid" => {
                 avro_type = json!({"type": "string", "logicalType": "uuid"});

@@ -453,3 +453,26 @@ fn a_union_stays_well_formed_after_a_definition_is_inlined_into_it() {
         defs,
     ));
 }
+
+#[test]
+fn date_time_keeps_the_time_and_duration_is_a_named_fixed_type() {
+    // date-time was a date (an int of days), dropping the time; duration was a fixed
+    // type without a name, which strict parsers reject.
+    let schema = json!({"type": "object", "required": ["at", "d1", "d2"], "properties": {
+        "at": {"type": "string", "format": "date-time"},
+        "d1": {"type": "string", "format": "duration"},
+        "d2": {"type": "string", "format": "duration"}}});
+    let avro = convert(&schema);
+    let fields = avro["fields"].as_array().unwrap();
+    assert_eq!(
+        fields[0]["type"],
+        json!({"type": "long", "logicalType": "timestamp-millis"})
+    );
+    assert_eq!(
+        fields[1]["type"],
+        json!({"type": "fixed", "name": "duration", "namespace": "ns", "size": 12,
+            "logicalType": "duration"})
+    );
+    // The second identical duration refers to the first.
+    assert_eq!(fields[2]["type"], json!("ns.duration"));
+}

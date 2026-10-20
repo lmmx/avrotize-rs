@@ -590,3 +590,27 @@ member: `anyOf [{$ref: Str}, {type: string}]` gave two strings. It could also be
 itself.
 
 **Change.** Each union in which a reference was resolved is normalized again.
+
+## 2026-10-20 · `date-time` and `duration` (`fix/date-time-and-duration`)
+
+**Defect.**
+
+- `date-time` became an `int` date, which drops the time of day.
+- `duration` became a `fixed` type without a name. The specification requires a name,
+  and strict parsers reject an unnamed fixed.
+
+**Change.**
+
+- `date-time` becomes a `timestamp-millis` long, as in Python avrotize.
+- A duration is a fixed type named `duration`, in its type's namespace.
+- Dependency resolution now handles fixed types as it does records and enums, so a
+  later identical duration becomes a reference, and a different type with the same
+  full name is renamed (`duration_1`).
+
+**Validation.** On 1,500 random schemas (with `duration` added to the generator's
+formats), all 110 changed outputs had one of the two formats, and the strict parser
+accepted every new output.
+
+**Compatibility: this changes valid output.** A `date-time` field goes from an
+`int`/`date` to a `long`/`timestamp-millis`. Writers translate both from strings, but
+consumers see a new logical type.
