@@ -614,3 +614,22 @@ accepted every new output.
 **Compatibility: this changes valid output.** A `date-time` field goes from an
 `int`/`date` to a `long`/`timestamp-millis`. Writers translate both from strings, but
 consumers see a new logical type.
+
+## 2026-10-20 · Merging schemas of different types (`fix/merge-conflicting-types`)
+
+**Defect.** When two schemas' types differ, `merge_json_schemas` widens the type to
+a list of both, and then merged the second schema in whole. `merge_structures` saw
+two types again and returned a list of the two schemas instead of their merge. A third
+schema merged into that list panicked on `unwrap`. A root or `$defs` `allOf` of three
+members of different types (`string`, `object`, `object`) reached it on the stack's
+base and on 0.1.2.
+
+**Change.** The rest of the schema is merged without its type, as Python avrotize
+does, which gives one schema with a type list. When the types are equal, merging the
+type again changed nothing, so that path is unaffected. Only merges that returned a
+list, or panicked, change.
+
+**Validation.** The fuzzer only puts `allOf` in properties, where (until the next
+entry) a merge never saw two types, so its 1,500-schema differential shows no change.
+The regression test is the reduced `$defs` case. The next entry's fuzz run, which
+reaches these merges through properties, found the panic.

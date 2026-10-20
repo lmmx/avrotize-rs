@@ -476,3 +476,15 @@ fn date_time_keeps_the_time_and_duration_is_a_named_fixed_type() {
     // The second identical duration refers to the first.
     assert_eq!(fields[2]["type"], json!("ns.duration"));
 }
+
+#[test]
+fn merging_three_schemas_of_different_types_does_not_panic() {
+    // Merging a second type made the merged schema a list of both, and merging a
+    // third schema into that list panicked.
+    let schema = json!({"type": "object", "properties": {"x": {"$ref": "#/$defs/X"}},
+        "$defs": {"X": {"allOf": [
+            {"type": "string"},
+            {"type": "object", "properties": {"a": {"type": "string"}}},
+            {"type": "object"}]}}});
+    convert(&schema);
+}
