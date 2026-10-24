@@ -1,8 +1,6 @@
-use reqwest::blocking::Client;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fs;
-use std::time::Duration;
 use url::Url;
 
 /// A simple cache for fetched schema content.
@@ -41,18 +39,7 @@ pub fn fetch_content(url: &str, cache: &mut ContentCache) -> Result<String, Stri
     let parsed = Url::parse(url).map_err(|e| format!("Invalid URL: {e}"))?;
 
     let content = match parsed.scheme() {
-        "http" | "https" => {
-            let client = Client::builder()
-                .timeout(Duration::from_secs(30))
-                .build()
-                .map_err(|e| format!("Client build error: {e}"))?;
-            let resp = client
-                .get(url)
-                .send()
-                .map_err(|e| format!("HTTP request error: {e}"))?;
-            resp.text()
-                .map_err(|e| format!("Error reading response: {e}"))?
-        }
+        "http" | "https" => fetch_http(url)?,
         "file" | "" => {
             let path = parsed
                 .to_file_path()
@@ -64,6 +51,29 @@ pub fn fetch_content(url: &str, cache: &mut ContentCache) -> Result<String, Stri
 
     cache.insert(url, content.clone());
     Ok(content)
+}
+
+/// Fetch schema text over http(s).
+#[cfg(feature = "http")]
+pub(crate) fn fetch_http(url: &str) -> Result<String, String> {
+    let client = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|e| format!("Client build error: {e}"))?;
+    let resp = client
+        .get(url)
+        .send()
+        .map_err(|e| format!("HTTP request error: {e}"))?;
+    resp.text()
+        .map_err(|e| format!("Error reading response: {e}"))
+}
+
+/// Without the `http` feature, an http(s) URL is an error.
+#[cfg(not(feature = "http"))]
+pub(crate) fn fetch_http(url: &str) -> Result<String, String> {
+    Err(format!(
+        "Cannot fetch {url}: avrotize was built without the `http` feature"
+    ))
 }
 
 /// Resolve a `$ref` reference inside a JSON schema.

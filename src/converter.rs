@@ -428,10 +428,7 @@ pub fn convert_jsons_to_avro(
     split_top_level_records: bool,
 ) -> Result<(), String> {
     let content = if json_schema_file_path.starts_with("http") {
-        reqwest::blocking::get(json_schema_file_path)
-            .map_err(|e| format!("HTTP fetch failed: {e}"))?
-            .text()
-            .map_err(|e| format!("Invalid response body: {e}"))?
+        references::fetch_http(json_schema_file_path)?
     } else {
         fs::read_to_string(json_schema_file_path)
             .map_err(|e| format!("Failed to read schema file: {e}"))?
