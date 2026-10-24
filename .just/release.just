@@ -1,7 +1,17 @@
 # Rust release workflow using release-plz
 #   just ship          -> the version release-plz proposes
 #   just ship 0.2.0    -> this version instead (release-plz set-version)
+# CI releases with the Deploy Release workflow instead: just release, then just publish
+# with a crates.io token from Trusted Publishing.
+# Release from a workstation: the release commit, then publish with your tokens
 ship version="":
+    just release {{version}}
+    just publish
+
+# The version bumped and the changelog written by release-plz, checked, committed and
+# pushed to master; `just publish` then publishes it.
+# The release commit, pushed to master
+release version="":
     #!/usr/bin/env -S echo-comment --shell-flags="-euo pipefail" --color="\\033[38;5;202m"
 
     # 🔍 Refuse to run if not on master branch or not up to date with origin/master
@@ -56,9 +66,6 @@ ship version="":
     just prepush
     # 🚀 Push the version bump commit
     git push --no-verify
-
-    # 📦 Create releases and tags
-    just publish
 
 publish mode="":
     #!/usr/bin/env -S bash -euo pipefail
