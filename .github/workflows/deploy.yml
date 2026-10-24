@@ -1,0 +1,83 @@
+name: Deploy Release
+
+# The release, as `just ship` makes it from a workstation, run by CI: `just release` bumps
+# the version and writes the changelog (release-plz), commits and pushes it to master, then
+# `just publish` (release-plz release) publishes the crate to crates.io, tags it vX.Y.Z and
+# makes its GitHub release.
+#
+# The crates.io token is short-lived, from crates.io's Trusted Publishing rather than a
+# stored secret: the crate's crates.io settings trust this repository's deploy.yml in the
+# crates-io environment. A GitHub release made with the workflow's token starts no other
+# workflow, so the binaries' workflow (CI.yml, on a published release) is started here for
+# the new tag.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "A version to release (e.g. 0.3.0), or empty for the one release-plz proposes from the commits"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-release
+  cancel-in-progress: false
+
+jobs:
+  deploy-release:
+    name: Run just release, then just publish
+    runs-on: ubuntu-latest
+    environment: crates-io
+    permissions:
+      actions: write
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Install just and release-plz
+        uses: taiki-e/install-action@v2
+        with:
+          tool: just@1.38.0,echo-comment@0.2.0,release-plz@0.3.172
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      # Bump the version, write the changelog, check, commit and push to master
+      - name: Run just release
+        env:
+          PUBLISH_GITHUB_TOKEN: ${{ github.token }}
+        run: just release ${{ inputs.version }}
+
+      - name: Get a crates.io token (Trusted Publishing)
+        id: auth
+        uses: rust-lang/crates-io-auth-action@v1
+
+      # Publish to crates.io, tag vX.Y.Z and make the GitHub release
+      - name: Run just publish
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+          PUBLISH_GITHUB_TOKEN: ${{ github.token }}
+        run: just publish
+
+      - name: Build the release's binaries
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name=="avrotize") | .version')
+          if git ls-remote --exit-code --tags origin "refs/tags/v$version" > /dev/null; then
+            gh workflow run CI.yml --ref master -f tag="v$version" -f dry-run=false
+            echo "Binaries for v$version: the CD workflow started" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No tag v$version: nothing was released, so no binaries are built" >> "$GITHUB_STEP_SUMMARY"
+          fi
